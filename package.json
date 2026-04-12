@@ -1,0 +1,7 @@
+{
+  "name": "chronicler-viewer",
+  "private": true,
+  "scripts": {
+    "start-viewer": "node viewer/start-viewer.js"
+  }
+}

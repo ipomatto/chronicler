@@ -11,6 +11,8 @@ import type {
   Provider
 } from '../../src/types/entities'
 
+const ts = () => new Date().toLocaleTimeString('it-IT', { hour12: false })
+
 // ---------------------------------------------------------------------------
 // JSON Schemas passed to the LLM as {json_schema} and used as tool input_schema
 // ---------------------------------------------------------------------------
@@ -198,20 +200,27 @@ export class LLMService {
     recapText: string,
     knownEntities: KnownEntity[]
   ): Promise<ExtractionResult> {
-    const prompt = await this.loadPrompt(entityType)
-    const filledPrompt = this.substituteVariables(prompt.body, {
-      json_schema: JSON.stringify(EXTRACTION_SCHEMAS[entityType], null, 2),
-      known_entities: this.formatKnownEntities(knownEntities),
-      recap_text: recapText
-    })
+    console.log(`[LLM] ${ts()} → extractEntities  ${this.config.provider}/${this.config.model}  ${entityType}  recap: ${recapText.length} chars  known: ${knownEntities.length}`)
+    try {
+      const prompt = await this.loadPrompt(entityType)
+      const filledPrompt = this.substituteVariables(prompt.body, {
+        json_schema: JSON.stringify(EXTRACTION_SCHEMAS[entityType], null, 2),
+        known_entities: this.formatKnownEntities(knownEntities),
+        recap_text: recapText
+      })
 
-    if (this.config.provider === 'anthropic') {
-      return this.callAnthropic(entityType, filledPrompt)
+      const result = this.config.provider === 'anthropic'
+        ? await this.callAnthropic(entityType, filledPrompt)
+        : this.config.provider === 'ollama'
+          ? await this.callOllama(entityType, filledPrompt)
+          : await this.callOpenAI(entityType, prompt.data.function_name as string, filledPrompt)
+
+      console.log(`[LLM] ${ts()} ✓ extractEntities  ${entityType}  entities: ${result.entities.length}`)
+      return result
+    } catch (err) {
+      console.error(`[LLM] ${ts()} ✗ extractEntities failed  ${entityType}`, err)
+      throw err
     }
-    if (this.config.provider === 'ollama') {
-      return this.callOllama(entityType, filledPrompt)
-    }
-    return this.callOpenAI(entityType, prompt.data.function_name as string, filledPrompt)
   }
 
   // ---------------------------------------------------------------------------
@@ -224,6 +233,7 @@ export class LLMService {
       this.config.provider,
       `extract-${entityType}.md`
     )
+    console.log(`[LLM] ${ts()} read prompt  ${filePath}`)
     const raw = await fs.readFile(filePath, 'utf-8')
     const { data, content } = matter(raw)
     return { data, body: content.trim() }
@@ -256,15 +266,22 @@ export class LLMService {
 
   private async callAnthropic(entityType: EntityType, filledPrompt: string): Promise<ExtractionResult> {
     const tool = this.buildAnthropicTool(entityType)
-    const response = await this.anthropicClient!.messages.create({
-      model: this.config.model,
-      max_tokens: 4096,
-      temperature: this.config.temperature ?? 0.3,
-      tools: [tool],
-      tool_choice: { type: 'any' },
-      messages: [{ role: 'user', content: filledPrompt }]
-    })
-    return this.parseAnthropicResponse(response, entityType)
+    console.log(`[LLM] ${ts()} → Anthropic  model: ${this.config.model}  type: ${entityType}`)
+    try {
+      const response = await this.anthropicClient!.messages.create({
+        model: this.config.model,
+        max_tokens: 4096,
+        temperature: this.config.temperature ?? 0.3,
+        tools: [tool],
+        tool_choice: { type: 'any' },
+        messages: [{ role: 'user', content: filledPrompt }]
+      })
+      console.log(`[LLM] ${ts()} ← Anthropic  type: ${entityType}  in: ${response.usage.input_tokens}  out: ${response.usage.output_tokens}  stop: ${response.stop_reason}`)
+      return this.parseAnthropicResponse(response, entityType)
+    } catch (err) {
+      console.error(`[LLM] ${ts()} ✗ Anthropic error  type: ${entityType}`, err)
+      throw err
+    }
   }
 
   private async callOpenAI(
@@ -273,14 +290,22 @@ export class LLMService {
     filledPrompt: string
   ): Promise<ExtractionResult> {
     const fn = this.buildOpenAIFunction(entityType, functionName)
-    const response = await this.openaiClient!.chat.completions.create({
-      model: this.config.model,
-      temperature: this.config.temperature ?? 0.3,
-      tools: [{ type: 'function', function: fn }],
-      tool_choice: { type: 'function', function: { name: functionName } },
-      messages: [{ role: 'user', content: filledPrompt }]
-    })
-    return this.parseOpenAIResponse(response, entityType)
+    const providerLabel = this.config.provider === 'ollama' ? 'Ollama' : 'OpenAI'
+    console.log(`[LLM] ${ts()} → ${providerLabel}  model: ${this.config.model}  type: ${entityType}`)
+    try {
+      const response = await this.openaiClient!.chat.completions.create({
+        model: this.config.model,
+        temperature: this.config.temperature ?? 0.3,
+        tools: [{ type: 'function', function: fn }],
+        tool_choice: { type: 'function', function: { name: functionName } },
+        messages: [{ role: 'user', content: filledPrompt }]
+      })
+      console.log(`[LLM] ${ts()} ← ${providerLabel}  type: ${entityType}  in: ${response.usage?.prompt_tokens ?? '?'}  out: ${response.usage?.completion_tokens ?? '?'}`)
+      return this.parseOpenAIResponse(response, entityType)
+    } catch (err) {
+      console.error(`[LLM] ${ts()} ✗ ${providerLabel} error  type: ${entityType}`, err)
+      throw err
+    }
   }
 
   private async callOllama(

@@ -2,6 +2,14 @@ import { app, BrowserWindow, shell, Menu } from 'electron'
 import path from 'node:path'
 import { registerHandlers } from './ipc/handlers'
 
+process.on('uncaughtException', (err) => {
+  console.error('[MAIN] uncaughtException', err)
+})
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[MAIN] unhandledRejection', reason)
+})
+
 // ---------------------------------------------------------------------------
 // Path resolution: dev uses source-relative paths, packaged uses resourcesPath
 // ---------------------------------------------------------------------------
@@ -42,6 +50,7 @@ function createWindow(): BrowserWindow {
 
   if (process.env['ELECTRON_RENDERER_URL']) {
     win.loadURL(process.env['ELECTRON_RENDERER_URL'])
+    win.webContents.openDevTools()
   } else {
     win.loadFile(path.join(__dirname, '../renderer/index.html'))
   }

@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { parseMarkdown, serializeMarkdown, buildSlug } from '../../src/lib/markdown'
-import type { EntityType, EntitySummary, EntityFile, MatchCandidate, ResolvedLink } from '../../src/types/entities'
+import type { EntityType, EntitySummary, EntityFile, MatchCandidate, ResolvedLink, UnlinkedMatch } from '../../src/types/entities'
 
 export class StorageService {
   constructor(private readonly dataPath: string) {}
@@ -83,6 +83,7 @@ export class StorageService {
     const filePath = this.filePath(entityType, slug)
     const raw = serializeMarkdown(content)
     await fs.writeFile(filePath, raw, 'utf-8')
+    void this.rebuildIndex()
   }
 
   async updateEntity(entityType: EntityType, slug: string, content: EntityFile): Promise<void> {
@@ -91,6 +92,7 @@ export class StorageService {
     await fs.access(filePath)
     const raw = serializeMarkdown(content)
     await fs.writeFile(filePath, raw, 'utf-8')
+    void this.rebuildIndex()
   }
 
   // ---------------------------------------------------------------------------
@@ -141,6 +143,90 @@ export class StorageService {
       return t > m ? t : m
     }, 0)
     return max + 1
+  }
+
+  async rebuildIndex(): Promise<void> {
+    const allTypes: EntityType[] = ['characters', 'locations', 'factions', 'events']
+    const labels: Record<EntityType, string> = {
+      characters: 'Personaggi',
+      locations: 'Luoghi',
+      factions: 'Fazioni',
+      events: 'Eventi'
+    }
+
+    const lines: string[] = [
+      '# Chronicler — Indice Entità',
+      '',
+      `_Aggiornato: ${new Date().toISOString().slice(0, 10)}_`,
+      ''
+    ]
+
+    for (const type of allTypes) {
+      try {
+        const entities = await this.listEntities(type)
+        if (entities.length === 0) continue
+        lines.push(`## ${labels[type]}`, '')
+        lines.push('| Nome | Slug | Aliases |')
+        lines.push('|------|------|---------|')
+        for (const e of entities) {
+          const aliases = (e.frontmatter.aliases as string[] | undefined) ?? []
+          lines.push(`| ${e.name} | ${e.slug} | ${aliases.join(', ')} |`)
+        }
+        lines.push('')
+      } catch {
+        // skip types that fail
+      }
+    }
+
+    try {
+      await fs.mkdir(this.dataPath, { recursive: true })
+      await fs.writeFile(path.join(this.dataPath, 'index.md'), lines.join('\n'), 'utf-8')
+    } catch {
+      // index is a convenience feature — don't fail writes if it can't be created
+    }
+  }
+
+  async findUnlinkedOccurrences(body: string): Promise<UnlinkedMatch[]> {
+    const allTypes: EntityType[] = ['characters', 'locations', 'factions', 'events']
+    const results: UnlinkedMatch[] = []
+
+    // Pre-compute already-linked spans so we skip them
+    // Split body into [non-link, link, non-link, link, ...] segments
+    const countInNonLinkedSegments = (text: string, pattern: RegExp): number => {
+      const parts = text.split(/(\[\[[^\]]*\]\])/g)
+      let total = 0
+      for (let i = 0; i < parts.length; i++) {
+        if (i % 2 === 1) continue // skip [[existing links]]
+        const m = parts[i].match(pattern)
+        if (m) total += m.length
+      }
+      return total
+    }
+
+    for (const entityType of allTypes) {
+      const entities = await this.listEntities(entityType)
+      for (const entity of entities) {
+        const namesToCheck = [
+          entity.name,
+          ...((entity.frontmatter.aliases as string[] | undefined) ?? [])
+        ].filter(Boolean)
+
+        let count = 0
+        for (const name of namesToCheck) {
+          const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+          const regex = new RegExp(escaped, 'gi')
+          count += countInNonLinkedSegments(body, regex)
+        }
+
+        if (count > 0) {
+          results.push({ entityName: entity.name, entityType, entitySlug: entity.slug, count })
+        }
+      }
+    }
+
+    // Sort by count descending
+    results.sort((a, b) => b.count - a.count)
+    return results
   }
 
   async resolveWikiLinks(text: string): Promise<ResolvedLink[]> {

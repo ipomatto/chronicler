@@ -165,6 +165,17 @@ export interface AppConfig {
 }
 
 // ---------------------------------------------------------------------------
+// Linking helpers
+// ---------------------------------------------------------------------------
+
+export interface UnlinkedMatch {
+  entityName: string
+  entityType: EntityType
+  entitySlug: string
+  count: number   // number of unlinked occurrences found in the body
+}
+
+// ---------------------------------------------------------------------------
 // IPC bridge type (used in preload + renderer)
 // ---------------------------------------------------------------------------
 
@@ -180,6 +191,7 @@ export interface ChroniclerBridge {
   resolveWikiLinks: (text: string) => Promise<ResolvedLink[]>
   generateSlug: (name: string, entityType: EntityType) => Promise<string>
   getNextEventTimetrack: () => Promise<number>
+  findUnlinkedOccurrences: (body: string) => Promise<UnlinkedMatch[]>
   // LLM
   extractEntities: (
     provider: Provider,

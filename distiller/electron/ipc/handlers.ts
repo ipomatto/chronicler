@@ -63,6 +63,10 @@ export function registerHandlers(ctx: HandlerContext): void {
     storage.getNextEventTimetrack()
   )
 
+  ipcMain.handle('storage:findUnlinkedOccurrences', (_e, body: string) =>
+    storage.findUnlinkedOccurrences(body)
+  )
+
   // ---------------------------------------------------------------------------
   // LLM handlers
   // ---------------------------------------------------------------------------

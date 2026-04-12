@@ -15,6 +15,7 @@ const bridge: ChroniclerBridge = {
   resolveWikiLinks: (text) => ipcRenderer.invoke('storage:resolveWikiLinks', text),
   generateSlug: (name, entityType) => ipcRenderer.invoke('storage:generateSlug', name, entityType),
   getNextEventTimetrack: () => ipcRenderer.invoke('storage:getNextEventTimetrack'),
+  findUnlinkedOccurrences: (body) => ipcRenderer.invoke('storage:findUnlinkedOccurrences', body),
 
   // LLM
   extractEntities: (provider, model, entityType, recapText, knownEntities) =>

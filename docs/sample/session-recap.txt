@@ -1,0 +1,139 @@
+SESSION RECAP - Nuove entita' per sessione
+============================================
+
+SESSIONE 001 - "L'Ombra sotto Valdris"
+---------------------------------------
+
+Personaggi:
+- Kaelen Tempestosa (elfa dei boschi, ranger, PG)
+- Durgan Martelloscuro (nano, chierico di Moradin, PG)
+- Lysara Velo (tiefling, warlock, PG)
+- Pip Ditolesto / "Mezza Moneta" (halfling, ladro, PG)
+- Marta la Rossa (umana, taverniera, NPC)
+- Tommas (umano, nipote di Marta, NPC)
+- Capitano Brennan (umano, comandante guardia cittadina, NPC)
+- Dito Corto (goblin, ricettatore, NPC)
+- Priora Selene (umana, guida del Tempio dei Venti, NPC)
+- Il Sussurrante (entita' extraplanare, patrono di Lysara, NPC)
+- Maestra Velena (identita' sconosciuta, solo menzionata, NPC)
+
+Luoghi:
+- Valdris (citta' portuale)
+- Taverna del Cervo Bianco (taverna nel quartiere portuale)
+- Porto Vecchio (quartiere malfamato)
+- Molo Sette (magazzino/covo cultisti)
+- Tempio dei Venti (santuario di Aeolos)
+- Khorfast (citta' oltre le Montagne del Tuono, solo menzionata)
+- Montagne del Tuono (catena montuosa, solo menzionata)
+- Arak-Thul (fortezza nanica in rovina, solo menzionata)
+
+Fazioni:
+- Culto del Serpente Nero (setta abissale)
+- Ordine della Luce Argentata (ordine storico, sciolto)
+- Gilda dei Mercanti (organizzazione commerciale)
+- Guardia cittadina di Valdris
+
+Eventi:
+- Sparizioni al Porto Vecchio
+- Infiltrazione al magazzino del Molo Sette
+- Scontro nella caverna sotterranea
+- Liberazione dei prigionieri
+- Fuga del leader mascherato attraverso portale d'ombra
+
+
+SESSIONE 002 - "Cenere e Bugie"
+--------------------------------
+
+Personaggi:
+- Renzo il Calvo (umano, commerciante, scomparso/morto, NPC)
+
+Luoghi:
+- Thal Mora (citta' accademica a nord, solo menzionata)
+- Biblioteca di Thal Mora (sede del Codice delle Ombre Profonde, solo menzionata)
+
+Fazioni:
+- (nessuna nuova)
+
+Eventi:
+- Incendio della bottega di Renzo il Calvo
+- Brennan incarica ufficialmente il gruppo
+
+
+SESSIONE 003 - "Il Mercante e il Topo"
+---------------------------------------
+
+Personaggi:
+- Varek il Mercante (nano, commerciante, NPC)
+- Sibilla la Svelta (halfling, ladra, NPC - solo avvistata)
+
+Luoghi:
+- Emporio di Varek (quartiere alto di Valdris)
+
+Fazioni:
+- (nessuna nuova)
+
+Eventi:
+- Pip ruba la pagina del registro di Varek (vendita a "V.S.")
+- Primo avvistamento di Sibilla la Svelta sui tetti
+- Nuova sparizione annunciata da Brennan
+
+
+SESSIONE 004 - "Sotto la Citta'"
+---------------------------------
+
+Personaggi:
+- Aldric Ferravena (umano, fabbro, NPC)
+- Seraphis (elfo, Voce del Serpente, leader del culto, NPC)
+- Setharak il Divoratore (Principe Demoniaco imprigionato, solo menzionato)
+
+Luoghi:
+- Sotterranei di Valdris (complesso nanico antico)
+- Palazzo del Governatore (solo menzionato)
+
+Fazioni:
+- L'Occhio Piangente (rete di spie legata alla famiglia Velassar)
+
+Eventi:
+- Esplorazione dei sotterranei sotto il Molo Sette
+- Salvataggio di Aldric Ferravena
+- Combattimento diretto con Seraphis
+- Ritirata di Seraphis attraverso portale d'ombra
+- Rivelazione del Sussurrante sui sette sigilli e Setharak
+
+
+SESSIONE 005 - "L'Udienza"
+---------------------------
+
+Personaggi:
+- Lord Ashwick (umano, governatore di Valdris, NPC - primo incontro diretto)
+
+Luoghi:
+- (nessun nuovo)
+
+Fazioni:
+- (nessuna nuova)
+
+Eventi:
+- Udienza al Palazzo del Governatore
+- Lord Ashwick offre contratto al gruppo (500+200 monete d'oro)
+- Pip nota il fermacarte con l'occhio piangente sulla scrivania di Ashwick
+
+
+SESSIONE 006 - "La Svelta Parla"
+---------------------------------
+
+Personaggi:
+- (nessun nuovo - Sibilla passa da "avvistata" a personaggio completo)
+
+Luoghi:
+- Porto Cenere (citta' costiera a sud, solo menzionata)
+
+Fazioni:
+- Cerchio dei Vigilanti (organizzazione segreta anti-culti)
+
+Eventi:
+- Sibilla si presenta al gruppo alla Taverna del Cervo Bianco
+- Alleanza operativa tra il gruppo e il Cerchio dei Vigilanti
+- Rivelazione: Seraphis e' la Voce del Serpente per l'intero culto
+- Rivelazione: uno dei sigilli e' nelle Montagne del Tuono
+- Rivelazione: la Gilda dei Mercanti non cerca oro ad Arak-Thul

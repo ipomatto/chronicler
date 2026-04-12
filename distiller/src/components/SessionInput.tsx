@@ -1,16 +1,22 @@
 import { useState, useEffect } from 'react'
-import type { ExtractionResult, LLMConfig, Provider } from '../types/entities'
+import type { ExtractionResult, IndexStats, LLMConfig, Provider } from '../types/entities'
 import { useExtraction } from '../hooks/useExtraction'
 
 interface Props {
   onComplete: (results: ExtractionResult[], provider: Provider, model: string) => void
 }
 
+type IndexStatus = 'checking' | 'rebuilding' | 'ready'
+
 export default function SessionInput({ onComplete }: Props) {
   const [recapText, setRecapText] = useState('')
   const [provider, setProvider] = useState<Provider>('anthropic')
   const [model, setModel] = useState('')
   const [llmConfig, setLlmConfig] = useState<LLMConfig | null>(null)
+
+  const [indexStatus, setIndexStatus] = useState<IndexStatus>('checking')
+  const [indexStats, setIndexStats] = useState<IndexStats | null>(null)
+  const [indexRebuilt, setIndexRebuilt] = useState(false)
 
   const { extractAll, progress, startTimes, counts, isExtracting, error } = useExtraction()
   const [, setTick] = useState(0)
@@ -31,6 +37,23 @@ export default function SessionInput({ onComplete }: Props) {
   useEffect(() => {
     if (llmConfig) setModel(llmConfig.providers[provider].defaultModel)
   }, [provider, llmConfig])
+
+  useEffect(() => {
+    void (async () => {
+      const exists = await window.chronicler.indexExists()
+      if (!exists) {
+        setIndexStatus('rebuilding')
+        const stats = await window.chronicler.rebuildIndex()
+        setIndexStats(stats)
+        setIndexRebuilt(true)
+      } else {
+        const stats = await window.chronicler.getEntityCounts()
+        setIndexStats(stats)
+        setIndexRebuilt(false)
+      }
+      setIndexStatus('ready')
+    })()
+  }, [])
 
   async function handleExtract() {
     if (!recapText.trim()) return
@@ -114,6 +137,43 @@ export default function SessionInput({ onComplete }: Props) {
       >
         {isExtracting ? 'Estrazione in corso…' : 'Estrai Entità'}
       </button>
+
+      {/* Index status bar */}
+      <div style={{
+        marginTop: 24,
+        padding: '8px 12px',
+        borderRadius: 'var(--radius)',
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        fontSize: 12,
+        color: 'var(--text-muted)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8
+      }}>
+        {indexStatus === 'checking' && (
+          <>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--border)', flexShrink: 0 }} />
+            Verifica indice…
+          </>
+        )}
+        {indexStatus === 'rebuilding' && (
+          <>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', flexShrink: 0 }} />
+            Ricostruzione indice in corso…
+          </>
+        )}
+        {indexStatus === 'ready' && indexStats && (
+          <>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
+            <span>
+              Indice{indexRebuilt ? ' (ricostruito)' : ''}: {indexStats.counts.characters} personaggi,{' '}
+              {indexStats.counts.locations} luoghi, {indexStats.counts.factions} fazioni,{' '}
+              {indexStats.counts.events} eventi — {indexStats.total} totali
+            </span>
+          </>
+        )}
+      </div>
     </div>
   )
 }

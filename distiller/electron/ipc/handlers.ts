@@ -67,6 +67,21 @@ export function registerHandlers(ctx: HandlerContext): void {
     storage.findUnlinkedOccurrences(body)
   )
 
+  ipcMain.handle('storage:rebuildIndex', () =>
+    storage.rebuildIndex()
+  )
+
+  ipcMain.handle('storage:getEntityCounts', () =>
+    storage.getEntityCounts()
+  )
+
+  ipcMain.handle('storage:indexExists', () =>
+    storage.indexExists()
+  )
+
+  // Ensure index.md exists on startup; rebuild silently if missing
+  fs.access(path.join(ctx.dataPath, 'index.md')).catch(() => { void storage.rebuildIndex() })
+
   // ---------------------------------------------------------------------------
   // LLM handlers
   // ---------------------------------------------------------------------------

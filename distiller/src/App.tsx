@@ -3,9 +3,10 @@ import SessionInput from './components/SessionInput'
 import ExtractionReview from './components/ExtractionReview'
 import StorageBrowser from './components/StorageBrowser'
 import Settings from './components/Settings'
+import IndexTools from './components/IndexTools'
 import type { ExtractionResult, Provider } from './types/entities'
 
-type Screen = 'input' | 'review' | 'browser' | 'settings'
+type Screen = 'input' | 'review' | 'browser' | 'tools' | 'settings'
 
 interface ExtractionSession {
   results: ExtractionResult[]
@@ -41,17 +42,21 @@ export default function App() {
         <span style={{ fontWeight: 700, marginRight: 16, color: 'var(--accent)' }}>
           Chronicler
         </span>
-        {(['input', 'browser', 'settings'] as const).map((s) => (
+        {([
+          ['input',    'Nuova Sessione'],
+          ['browser',  'Archivio'],
+          ['tools',    'Strumenti'],
+          ['settings', 'Impostazioni'],
+        ] as [Screen, string][]).map(([s, label]) => (
           <button
             key={s}
             onClick={() => setScreen(s)}
             style={{
               background: screen === s ? 'var(--surface2)' : 'transparent',
-              border: screen === s ? '1px solid var(--border)' : '1px solid transparent',
-              textTransform: 'capitalize'
+              border: screen === s ? '1px solid var(--border)' : '1px solid transparent'
             }}
           >
-            {s === 'input' ? 'Nuova Sessione' : s === 'browser' ? 'Archivio' : 'Impostazioni'}
+            {label}
           </button>
         ))}
       </nav>
@@ -68,6 +73,7 @@ export default function App() {
           />
         )}
         {screen === 'browser' && <StorageBrowser />}
+        {screen === 'tools' && <IndexTools />}
         {screen === 'settings' && <Settings />}
       </main>
     </div>

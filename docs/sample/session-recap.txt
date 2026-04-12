@@ -1,6 +1,32 @@
 SESSION RECAP - Nuove entita' per sessione
 ============================================
 
+SESSIONE 000 - "Venti di Sale"
+-------------------------------
+
+Personaggi:
+- Kaelen Tempestosa (elfa dei boschi, ranger, PG)
+- Durgan Martelloscuro (nano, chierico di Moradin, PG)
+- Lysara Velo (tiefling, warlock, PG)
+- Pip Ditolesto / "Mezza Moneta" (halfling, ladro, PG)
+- Marta la Rossa (umana, taverniera, NPC)
+- Capitano Brennan (umano, comandante guardia cittadina, solo menzionato)
+- Lord Ashwick (umano, governatore di Valdris, solo menzionato)
+
+Luoghi:
+- Valdris (citta' portuale)
+- Tempio dei Venti (santuario di Aeolos)
+- Porto Vecchio (quartiere malfamato)
+- Taverna del Cervo Bianco (taverna nel quartiere portuale)
+- Molo Sette (magazzini lungo il porto)
+
+Fazioni:
+- (nessuna nuova)
+
+Eventi:
+- Arrivo della carovana a Valdris
+
+
 SESSIONE 001 - "L'Ombra sotto Valdris"
 ---------------------------------------
 

@@ -23,6 +23,23 @@ For new characters, extract all available information.
 For each new character, include at least one body section, usually `Description`, with a short summary based on the text.
 If the text gives only a small amount of information, still write a brief `Description` rather than leaving body_sections empty.
 
+When the session text provides enough detail, be specific and capture:
+- physical appearance, clothing, weapons, distinctive traits, scars, posture, voice, or other visible details
+- personality, temperament, habits, fears, motives, beliefs, or behavioral tendencies
+- affiliations, patrons, faith, cults, factions, family ties, mentors, rivals, or command structures
+- places commonly associated with the character, such as where they live, work, operate, pray, rule, or are usually found
+- inclinations and narrative tendencies, such as secrecy, ambition, devotion, cynicism, violence, mercy, greed, loyalty, curiosity, or other recurring attitudes
+
+Prefer concrete details stated or strongly implied by the text. Do not invent unsupported facts.
+
+When useful, split the character information into multiple body sections such as:
+- `Description` for appearance and immediately observable details
+- `Personality` for temperament, mindset, and inclinations
+- `Affiliations` for allegiances, patrons, religion, family, or organizational ties
+- `Notes` for common haunts, habits, recurring associations, or other important details
+
+If only one section is appropriate, keep everything in `Description`, but still make it rich and specific.
+
 Return ONLY valid JSON matching the output schema.
 Do not call tools or functions.
 Do not include markdown fences or explanatory text.

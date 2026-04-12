@@ -1,0 +1,12 @@
+{
+  "storage": {
+    "dataPath": "./data"
+  },
+  "matching": {
+    "fuzzyThreshold": 0.4,
+    "maxCandidates": 5
+  },
+  "ui": {
+    "language": "it"
+  }
+}

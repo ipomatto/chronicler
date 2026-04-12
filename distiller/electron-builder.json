@@ -1,0 +1,30 @@
+{
+  "appId": "it.chronicler.distiller",
+  "productName": "Chronicler Distiller",
+  "directories": {
+    "output": "release"
+  },
+  "files": [
+    "out/**/*"
+  ],
+  "extraResources": [
+    {
+      "from": "../prompts",
+      "to": "prompts"
+    },
+    {
+      "from": "../config",
+      "to": "config"
+    }
+  ],
+  "win": {
+    "target": "nsis"
+  },
+  "mac": {
+    "target": "dmg",
+    "category": "public.app-category.productivity"
+  },
+  "linux": {
+    "target": "AppImage"
+  }
+}

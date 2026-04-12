@@ -1,0 +1,38 @@
+{
+  "name": "chronicler-distiller",
+  "version": "0.1.0",
+  "private": true,
+  "main": "out/main/main.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "package": "npm run build:icons && electron-vite build && electron-builder",
+    "build:icons": "node scripts/build-icons.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.36.3",
+    "openai": "^4.76.0",
+    "gray-matter": "^4.0.3",
+    "fuse.js": "^7.0.0"
+  },
+  "devDependencies": {
+    "electron": "^33.3.1",
+    "electron-vite": "^2.3.0",
+    "electron-builder": "^25.1.8",
+    "@vitejs/plugin-react": "^4.3.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8",
+    "@vitest/ui": "^2.1.8",
+    "@resvg/resvg-js": "^2.6.2",
+    "png-to-ico": "^2.1.8"
+  }
+}

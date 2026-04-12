@@ -1,0 +1,42 @@
+{
+  "providers": {
+    "openai": {
+      "models": [
+        {
+          "id": "gpt-4o",
+          "name": "GPT-4o",
+          "maxTokens": 4096,
+          "supportsJsonMode": true,
+          "supportsFunctionCalling": true
+        },
+        {
+          "id": "gpt-4o-mini",
+          "name": "GPT-4o Mini",
+          "maxTokens": 4096,
+          "supportsJsonMode": true,
+          "supportsFunctionCalling": true
+        }
+      ],
+      "defaultModel": "gpt-4o",
+      "defaultTemperature": 0.3
+    },
+    "anthropic": {
+      "models": [
+        {
+          "id": "claude-sonnet-4-20250514",
+          "name": "Claude Sonnet 4",
+          "maxTokens": 4096,
+          "supportsToolUse": true
+        },
+        {
+          "id": "claude-haiku-4-5-20251001",
+          "name": "Claude Haiku 4.5",
+          "maxTokens": 4096,
+          "supportsToolUse": true
+        }
+      ],
+      "defaultModel": "claude-sonnet-4-20250514",
+      "defaultTemperature": 0.3
+    }
+  }
+}

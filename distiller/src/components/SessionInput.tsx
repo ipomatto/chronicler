@@ -3,7 +3,7 @@ import type { ExtractionResult, IndexStats, LLMConfig, Provider } from '../types
 import { useExtraction } from '../hooks/useExtraction'
 
 interface Props {
-  onComplete: (results: ExtractionResult[], provider: Provider, model: string) => void
+  onComplete: (results: ExtractionResult[], provider: Provider, model: string, sessione: string) => void
 }
 
 type IndexStatus = 'checking' | 'rebuilding' | 'ready'
@@ -57,8 +57,9 @@ export default function SessionInput({ onComplete }: Props) {
 
   async function handleExtract() {
     if (!recapText.trim()) return
+    const sessione = crypto.randomUUID()
     const results = await extractAll(recapText, provider, model)
-    if (results) onComplete(results, provider, model)
+    if (results) onComplete(results, provider, model, sessione)
   }
 
   const models = llmConfig?.providers[provider]?.models ?? []

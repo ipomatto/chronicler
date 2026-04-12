@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { EntityType, EntitySummary, EntityFile, UnlinkedMatch } from '../types/entities'
+import EntityEditor from './EntityEditor'
 
 const TABS: EntityType[] = ['characters', 'locations', 'factions', 'events']
 const LABELS: Record<EntityType, string> = {
@@ -41,6 +42,9 @@ export default function StorageBrowser() {
   const [autoSelected, setAutoSelected] = useState<Set<string>>(new Set())
   const [autoSaving, setAutoSaving] = useState(false)
 
+  // Edit mode
+  const [editMode, setEditMode] = useState(false)
+
   useEffect(() => { loadTab(tab) }, [tab])
 
   async function loadTab(type: EntityType) {
@@ -66,6 +70,7 @@ export default function StorageBrowser() {
     setSelected(file)
     setSelectedSlug(slug)
     setSelectedType(type)
+    setEditMode(false)
     clearAllLinkState()
   }
 
@@ -246,7 +251,7 @@ export default function StorageBrowser() {
               {/* Collega (selection-based) */}
               <button
                 onClick={handleLinkSearch}
-                disabled={!selectedText || linkLoading || linkSaving || autoLoading}
+                disabled={!selectedText || linkLoading || linkSaving || autoLoading || editMode}
                 title={selectedText ? `Cerca entità per "${selectedText}"` : 'Seleziona del testo nel corpo per abilitare'}
                 style={{
                   fontSize: 12,
@@ -272,7 +277,7 @@ export default function StorageBrowser() {
               {/* Collega tutti */}
               <button
                 onClick={handleAutoLink}
-                disabled={autoLoading || autoSaving || linkLoading}
+                disabled={autoLoading || autoSaving || linkLoading || editMode}
                 style={{
                   fontSize: 12,
                   padding: '4px 12px',
@@ -283,6 +288,26 @@ export default function StorageBrowser() {
                 }}
               >
                 {autoLoading ? 'Analisi…' : 'Collega tutti'}
+              </button>
+
+              {/* Separator */}
+              <span style={{ color: 'var(--border)', userSelect: 'none' }}>|</span>
+
+              {/* Modifica */}
+              <button
+                onClick={() => setEditMode(true)}
+                disabled={editMode || linkCandidates !== null || autoMatches !== null}
+                style={{
+                  fontSize: 12,
+                  padding: '4px 12px',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius)',
+                  cursor: editMode ? 'default' : 'pointer',
+                  background: editMode ? 'var(--surface2)' : 'transparent',
+                  color: editMode ? 'var(--text-muted)' : 'var(--text)'
+                }}
+              >
+                Modifica
               </button>
 
               {/* Cancel (when a panel is open) */}
@@ -470,35 +495,47 @@ export default function StorageBrowser() {
                 </div>
               )}
 
-              {/* Frontmatter */}
-              <div style={{ marginBottom: 16 }}>
-                {Object.entries(selected.frontmatter)
-                  .filter(([k]) => k !== 'name')
-                  .map(([k, v]) => (
-                    <div key={k} style={{ display: 'flex', gap: 12, marginBottom: 4, fontSize: 13 }}>
-                      <span style={{ color: 'var(--text-muted)', minWidth: 120 }}>{k}:</span>
-                      <span>{JSON.stringify(v)}</span>
-                    </div>
-                  ))}
-              </div>
+              {editMode && selectedType && selectedSlug ? (
+                <EntityEditor
+                  file={selected}
+                  entityType={selectedType}
+                  slug={selectedSlug}
+                  onSaved={(updated) => { setSelected(updated); setEditMode(false) }}
+                  onCancel={() => setEditMode(false)}
+                />
+              ) : (
+                <>
+                  {/* Frontmatter */}
+                  <div style={{ marginBottom: 16 }}>
+                    {Object.entries(selected.frontmatter)
+                      .filter(([k]) => k !== 'name')
+                      .map(([k, v]) => (
+                        <div key={k} style={{ display: 'flex', gap: 12, marginBottom: 4, fontSize: 13 }}>
+                          <span style={{ color: 'var(--text-muted)', minWidth: 120 }}>{k}:</span>
+                          <span>{JSON.stringify(v)}</span>
+                        </div>
+                      ))}
+                  </div>
 
-              {/* Body */}
-              <pre
-                onMouseUp={handleBodyMouseUp}
-                style={{
-                  background: 'var(--surface)',
-                  padding: 16,
-                  borderRadius: 'var(--radius)',
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                  fontSize: 13,
-                  lineHeight: 1.6,
-                  userSelect: 'text',
-                  cursor: 'text'
-                }}
-              >
-                {selected.body}
-              </pre>
+                  {/* Body */}
+                  <pre
+                    onMouseUp={handleBodyMouseUp}
+                    style={{
+                      background: 'var(--surface)',
+                      padding: 16,
+                      borderRadius: 'var(--radius)',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      fontSize: 13,
+                      lineHeight: 1.6,
+                      userSelect: 'text',
+                      cursor: 'text'
+                    }}
+                  >
+                    {selected.body}
+                  </pre>
+                </>
+              )}
             </div>
           </>
         ) : (

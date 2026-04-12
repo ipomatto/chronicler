@@ -4,19 +4,23 @@ import type { ExtractedEntity, EntityType, EntityFile } from '../types/entities'
 interface Props {
   entity: ExtractedEntity
   entityType: EntityType
+  slug?: string  // overrides entity.matched_slug (used after disambiguation)
 }
 
-export default function EntityDiff({ entity, entityType }: Props) {
+export default function EntityDiff({ entity, entityType, slug }: Props) {
   const [existing, setExisting] = useState<EntityFile | null>(null)
   const [loading, setLoading] = useState(true)
 
+  const effectiveSlug = slug ?? entity.matched_slug
+
   useEffect(() => {
-    if (!entity.matched_slug) return
-    window.chronicler.getEntity(entityType, entity.matched_slug)
+    if (!effectiveSlug) return
+    window.chronicler.getEntity(entityType, effectiveSlug)
       .then(setExisting)
       .finally(() => setLoading(false))
-  }, [entity.matched_slug, entityType])
+  }, [effectiveSlug, entityType])
 
+  if (!effectiveSlug) return null
   if (loading) {
     return <div style={{ padding: '8px 0', color: 'var(--text-muted)', fontSize: 12 }}>Caricamento…</div>
   }

@@ -4,6 +4,7 @@ import EntityCard from './EntityCard'
 
 interface Props {
   results: ExtractionResult[]
+  sessione: string
   onDone: () => void
 }
 
@@ -17,9 +18,11 @@ const LABELS: Record<EntityType, string> = {
   events: 'Eventi'
 }
 
-export default function ExtractionReview({ results, onDone }: Props) {
+export default function ExtractionReview({ results, sessione, onDone }: Props) {
   const [decisions, setDecisions] = useState<DecisionMap>({})
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [resolvedSlugs, setResolvedSlugs] = useState<Record<string, string | null>>({})
 
   function key(entityType: EntityType, name: string) {
     return `${entityType}::${name}`
@@ -41,6 +44,7 @@ export default function ExtractionReview({ results, onDone }: Props) {
 
   async function saveApproved() {
     setSaving(true)
+    setSaveError(null)
     try {
       for (const result of results) {
         for (const entity of result.entities) {
@@ -50,17 +54,21 @@ export default function ExtractionReview({ results, onDone }: Props) {
         }
       }
       onDone()
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : String(err))
     } finally {
       setSaving(false)
     }
   }
 
   async function saveEntity(entityType: EntityType, entity: ExtractedEntity) {
-    if (entity.matched_slug) {
+    const k = key(entityType, entity.name)
+    const effectiveSlug = k in resolvedSlugs ? resolvedSlugs[k] : entity.matched_slug
+    if (effectiveSlug) {
       // UPDATE existing
-      const existing = await window.chronicler.getEntity(entityType, entity.matched_slug)
-      const updated = applyExtractedData(existing, entity)
-      await window.chronicler.updateEntity(entityType, entity.matched_slug, updated)
+      const existing = await window.chronicler.getEntity(entityType, effectiveSlug)
+      const updated = applyExtractedData(existing, entity, sessione)
+      await window.chronicler.updateEntity(entityType, effectiveSlug, updated)
     } else {
       // CREATE new
       const slug = await window.chronicler.generateSlug(entity.name, entityType)
@@ -76,7 +84,8 @@ export default function ExtractionReview({ results, onDone }: Props) {
           type: entityType.replace(/s$/, '') as string,
           ...entity.extracted_data.frontmatter,
           ...(timetrack !== undefined ? { timetrack } : {}),
-          last_updated: today
+          last_updated: today,
+          sessione
         },
         body: buildBody(entity)
       })
@@ -85,7 +94,8 @@ export default function ExtractionReview({ results, onDone }: Props) {
 
   function applyExtractedData(
     existing: { frontmatter: Record<string, unknown>; body: string },
-    entity: ExtractedEntity
+    entity: ExtractedEntity,
+    sessioneId: string
   ) {
     const updatable = ['status', 'tags', 'aliases', 'last_updated']
     const newFm = { ...existing.frontmatter }
@@ -99,6 +109,7 @@ export default function ExtractionReview({ results, onDone }: Props) {
       }
     }
     newFm.last_updated = new Date().toISOString().split('T')[0]
+    newFm.sessione = sessioneId
     let body = existing.body
     for (const section of entity.extracted_data.body_sections) {
       if (section.mode === 'append') {
@@ -147,7 +158,10 @@ export default function ExtractionReview({ results, onDone }: Props) {
     <div style={{ maxWidth: 960, margin: '0 auto', padding: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <h2>Revisione Estrazione</h2>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {saveError && (
+            <span style={{ color: '#f87171', fontSize: 12, maxWidth: 320 }}>{saveError}</span>
+          )}
           <button onClick={approveAll}>Approva tutto</button>
           <button
             className="primary"
@@ -172,6 +186,9 @@ export default function ExtractionReview({ results, onDone }: Props) {
                 entityType={result.entity_type}
                 decision={decisions[key(result.entity_type, entity.name)]}
                 onDecide={(d) => decide(result.entity_type, entity.name, d)}
+                onResolved={(slug) =>
+                  setResolvedSlugs((prev) => ({ ...prev, [key(result.entity_type, entity.name)]: slug }))
+                }
               />
             ))}
           </div>

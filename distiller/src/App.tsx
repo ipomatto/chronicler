@@ -12,14 +12,15 @@ interface ExtractionSession {
   results: ExtractionResult[]
   provider: Provider
   model: string
+  sessione: string
 }
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('input')
   const [session, setSession] = useState<ExtractionSession | null>(null)
 
-  function handleExtractionComplete(results: ExtractionResult[], provider: Provider, model: string) {
-    setSession({ results, provider, model })
+  function handleExtractionComplete(results: ExtractionResult[], provider: Provider, model: string, sessione: string) {
+    setSession({ results, provider, model, sessione })
     setScreen('review')
   }
 
@@ -69,6 +70,7 @@ export default function App() {
         {screen === 'review' && session && (
           <ExtractionReview
             results={session.results}
+            sessione={session.sessione}
             onDone={handleReviewDone}
           />
         )}

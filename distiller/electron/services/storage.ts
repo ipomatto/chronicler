@@ -3,6 +3,8 @@ import path from 'node:path'
 import { parseMarkdown, serializeMarkdown, buildSlug } from '../../src/lib/markdown'
 import type { EntityType, EntitySummary, EntityFile, MatchCandidate, ResolvedLink, UnlinkedMatch, IndexStats } from '../../src/types/entities'
 
+const ts = () => new Date().toLocaleTimeString('it-IT', { hour12: false })
+
 export class StorageService {
   constructor(private readonly dataPath: string) {}
 
@@ -20,6 +22,7 @@ export class StorageService {
 
   async listEntities(entityType: EntityType): Promise<EntitySummary[]> {
     const dir = this.dirFor(entityType)
+    console.log(`[STORAGE] ${ts()} list  ${entityType}  ${dir}`)
     let entries: string[]
     try {
       entries = await fs.readdir(dir)
@@ -47,8 +50,15 @@ export class StorageService {
   }
 
   async getEntity(entityType: EntityType, slug: string): Promise<EntityFile> {
-    const raw = await fs.readFile(this.filePath(entityType, slug), 'utf-8')
-    return parseMarkdown(raw)
+    const filePath = this.filePath(entityType, slug)
+    console.log(`[STORAGE] ${ts()} read  ${filePath}`)
+    try {
+      const raw = await fs.readFile(filePath, 'utf-8')
+      return parseMarkdown(raw)
+    } catch (err) {
+      console.error(`[STORAGE] ${ts()} ✗ getEntity failed  ${filePath}`, err)
+      throw err
+    }
   }
 
   async searchEntities(query: string): Promise<EntitySummary[]> {
@@ -82,7 +92,14 @@ export class StorageService {
     await fs.mkdir(dir, { recursive: true })
     const filePath = this.filePath(entityType, slug)
     const raw = serializeMarkdown(content)
-    await fs.writeFile(filePath, raw, 'utf-8')
+    console.log(`[STORAGE] ${ts()} → WRITE (create)  ${filePath}`)
+    try {
+      await fs.writeFile(filePath, raw, 'utf-8')
+      console.log(`[STORAGE] ${ts()} ✓ created  ${filePath}`)
+    } catch (err) {
+      console.error(`[STORAGE] ${ts()} ✗ createEntity failed  ${filePath}`, err)
+      throw err
+    }
     void this.rebuildIndex()
   }
 
@@ -91,7 +108,14 @@ export class StorageService {
     // Verify file exists before overwriting
     await fs.access(filePath)
     const raw = serializeMarkdown(content)
-    await fs.writeFile(filePath, raw, 'utf-8')
+    console.log(`[STORAGE] ${ts()} → WRITE (update)  ${filePath}`)
+    try {
+      await fs.writeFile(filePath, raw, 'utf-8')
+      console.log(`[STORAGE] ${ts()} ✓ updated  ${filePath}`)
+    } catch (err) {
+      console.error(`[STORAGE] ${ts()} ✗ updateEntity failed  ${filePath}`, err)
+      throw err
+    }
     void this.rebuildIndex()
   }
 
@@ -206,14 +230,19 @@ export class StorageService {
       }
     }
 
+    const total = Object.values(counts).reduce((s, n) => s + n, 0)
+
+    const indexPath = path.join(this.dataPath, 'index.md')
+    console.log(`[STORAGE] ${ts()} → WRITE (index)  ${indexPath}`)
     try {
       await fs.mkdir(this.dataPath, { recursive: true })
-      await fs.writeFile(path.join(this.dataPath, 'index.md'), lines.join('\n'), 'utf-8')
-    } catch {
-      // index is a convenience feature — don't fail writes if it can't be created
+      await fs.writeFile(indexPath, lines.join('\n'), 'utf-8')
+      console.log(`[STORAGE] ${ts()} ✓ index rebuilt  chars:${counts.characters} locs:${counts.locations} fac:${counts.factions} ev:${counts.events} tot:${total}`)
+    } catch (err) {
+      console.error(`[STORAGE] ${ts()} ✗ rebuildIndex failed  ${indexPath}`, err)
+      // index is a convenience feature — don't rethrow
     }
 
-    const total = Object.values(counts).reduce((s, n) => s + n, 0)
     return { rebuiltAt, counts, total }
   }
 

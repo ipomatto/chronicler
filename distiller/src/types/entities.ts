@@ -17,6 +17,7 @@ export interface CharacterFrontmatter {
   aliases: string[]
   tags: string[]
   last_updated: string
+  sessione?: string
 }
 
 export interface LocationFrontmatter {
@@ -28,6 +29,7 @@ export interface LocationFrontmatter {
   status: 'active' | 'destroyed' | 'abandoned' | 'contested' | 'unknown'
   tags: string[]
   last_updated: string
+  sessione?: string
 }
 
 export interface FactionFrontmatter {
@@ -39,6 +41,7 @@ export interface FactionFrontmatter {
   base_of_operations: string
   tags: string[]
   last_updated: string
+  sessione?: string
 }
 
 export interface EventFrontmatter {
@@ -51,6 +54,7 @@ export interface EventFrontmatter {
   location: string
   tags: string[]
   last_updated: string
+  sessione?: string
 }
 
 export type EntityFrontmatter =

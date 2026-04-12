@@ -8,17 +8,21 @@ interface Props {
   entityType: EntityType
   decision: 'approve' | 'skip' | undefined
   onDecide: (d: 'approve' | 'skip') => void
+  onResolved?: (slug: string | null) => void
 }
 
-export default function EntityCard({ entity, entityType, decision, onDecide }: Props) {
+export default function EntityCard({ entity, entityType, decision, onDecide, onResolved }: Props) {
   const [showDiff, setShowDiff] = useState(false)
   const [resolving, setResolving] = useState(false)
+  // undefined = not yet disambiguated; null = user chose "create new"; string = matched slug
+  const [localMatchedSlug, setLocalMatchedSlug] = useState<string | null | undefined>(undefined)
 
-  const isUpdate = !!entity.matched_slug
-  const isAmbiguous = !entity.matched_slug && entity.possible_matches.length > 0
+  const effectiveMatchedSlug = localMatchedSlug !== undefined ? localMatchedSlug : entity.matched_slug
+  const isUpdate = !!effectiveMatchedSlug
+  const isAmbiguous = localMatchedSlug === undefined && !entity.matched_slug && (entity.possible_matches?.length ?? 0) > 0
 
-  const badge = isUpdate ? 'UPDATE' : isAmbiguous ? 'AMBIGUOUS' : 'NEW'
-  const badgeColor = isUpdate ? '#3b82f6' : isAmbiguous ? '#f59e0b' : '#22c55e'
+  const badge = isAmbiguous ? 'AMBIGUOUS' : isUpdate ? 'UPDATE' : 'NEW'
+  const badgeColor = isAmbiguous ? '#f59e0b' : isUpdate ? '#3b82f6' : '#22c55e'
 
   const borderColor =
     decision === 'approve' ? '#22c55e' :
@@ -46,11 +50,11 @@ export default function EntityCard({ entity, entityType, decision, onDecide }: P
             {badge}
           </span>
           <strong>{entity.name}</strong>
-          {entity.matched_slug && (
-            <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>→ {entity.matched_slug}</span>
+          {effectiveMatchedSlug && (
+            <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>→ {effectiveMatchedSlug}</span>
           )}
           <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>
-            ({Math.round(entity.confidence * 100)}% confidence)
+            ({Math.round((entity.confidence ?? 0) * 100)}% confidence)
           </span>
         </div>
 
@@ -63,6 +67,7 @@ export default function EntityCard({ entity, entityType, decision, onDecide }: P
               {showDiff ? 'Nascondi diff' : 'Vedi diff'}
             </button>
           )}
+
           <button
             onClick={() => onDecide('approve')}
             style={{ background: decision === 'approve' ? '#22c55e' : undefined }}
@@ -84,15 +89,19 @@ export default function EntityCard({ entity, entityType, decision, onDecide }: P
         </p>
       )}
 
-      {showDiff && entity.matched_slug && (
-        <EntityDiff entity={entity} entityType={entityType} />
+      {showDiff && effectiveMatchedSlug && (
+        <EntityDiff entity={entity} entityType={entityType} slug={effectiveMatchedSlug} />
       )}
 
       {resolving && (
         <MatchResolver
           entity={entity}
           entityType={entityType}
-          onResolved={() => setResolving(false)}
+          onResolved={(slug) => {
+            setLocalMatchedSlug(slug)
+            setResolving(false)
+            onResolved?.(slug)
+          }}
         />
       )}
     </div>

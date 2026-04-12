@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { parseMarkdown, serializeMarkdown, buildSlug } from '../../src/lib/markdown'
-import type { EntityType, EntitySummary, EntityFile, MatchCandidate, ResolvedLink, UnlinkedMatch } from '../../src/types/entities'
+import type { EntityType, EntitySummary, EntityFile, MatchCandidate, ResolvedLink, UnlinkedMatch, IndexStats } from '../../src/types/entities'
 
 export class StorageService {
   constructor(private readonly dataPath: string) {}
@@ -108,6 +108,15 @@ export class StorageService {
     }
   }
 
+  async indexExists(): Promise<boolean> {
+    try {
+      await fs.access(path.join(this.dataPath, 'index.md'))
+      return true
+    } catch {
+      return false
+    }
+  }
+
   async findSimilarEntities(name: string, entityType: EntityType): Promise<MatchCandidate[]> {
     // Delegated to MatcherService – StorageService exposes raw data for it
     const entities = await this.listEntities(entityType)
@@ -145,7 +154,22 @@ export class StorageService {
     return max + 1
   }
 
-  async rebuildIndex(): Promise<void> {
+  async getEntityCounts(): Promise<IndexStats> {
+    const allTypes: EntityType[] = ['characters', 'locations', 'factions', 'events']
+    const counts: Record<EntityType, number> = { characters: 0, locations: 0, factions: 0, events: 0 }
+    for (const type of allTypes) {
+      try {
+        const entities = await this.listEntities(type)
+        counts[type] = entities.length
+      } catch {
+        // ignore missing directories
+      }
+    }
+    const total = Object.values(counts).reduce((s, n) => s + n, 0)
+    return { rebuiltAt: new Date().toISOString(), counts, total }
+  }
+
+  async rebuildIndex(): Promise<IndexStats> {
     const allTypes: EntityType[] = ['characters', 'locations', 'factions', 'events']
     const labels: Record<EntityType, string> = {
       characters: 'Personaggi',
@@ -154,16 +178,20 @@ export class StorageService {
       events: 'Eventi'
     }
 
+    const rebuiltAt = new Date().toISOString()
+    const counts: Record<EntityType, number> = { characters: 0, locations: 0, factions: 0, events: 0 }
+
     const lines: string[] = [
       '# Chronicler — Indice Entità',
       '',
-      `_Aggiornato: ${new Date().toISOString().slice(0, 10)}_`,
+      `_Aggiornato: ${rebuiltAt.slice(0, 10)}_`,
       ''
     ]
 
     for (const type of allTypes) {
       try {
         const entities = await this.listEntities(type)
+        counts[type] = entities.length
         if (entities.length === 0) continue
         lines.push(`## ${labels[type]}`, '')
         lines.push('| Nome | Slug | Aliases |')
@@ -184,6 +212,9 @@ export class StorageService {
     } catch {
       // index is a convenience feature — don't fail writes if it can't be created
     }
+
+    const total = Object.values(counts).reduce((s, n) => s + n, 0)
+    return { rebuiltAt, counts, total }
   }
 
   async findUnlinkedOccurrences(body: string): Promise<UnlinkedMatch[]> {

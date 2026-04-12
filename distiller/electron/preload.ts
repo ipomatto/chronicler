@@ -16,6 +16,9 @@ const bridge: ChroniclerBridge = {
   generateSlug: (name, entityType) => ipcRenderer.invoke('storage:generateSlug', name, entityType),
   getNextEventTimetrack: () => ipcRenderer.invoke('storage:getNextEventTimetrack'),
   findUnlinkedOccurrences: (body) => ipcRenderer.invoke('storage:findUnlinkedOccurrences', body),
+  getEntityCounts: () => ipcRenderer.invoke('storage:getEntityCounts'),
+  rebuildIndex: () => ipcRenderer.invoke('storage:rebuildIndex'),
+  indexExists: () => ipcRenderer.invoke('storage:indexExists'),
 
   // LLM
   extractEntities: (provider, model, entityType, recapText, knownEntities) =>

@@ -165,6 +165,16 @@ export interface AppConfig {
 }
 
 // ---------------------------------------------------------------------------
+// Index
+// ---------------------------------------------------------------------------
+
+export interface IndexStats {
+  rebuiltAt: string                    // ISO datetime
+  counts: Record<EntityType, number>   // entities per type
+  total: number
+}
+
+// ---------------------------------------------------------------------------
 // Linking helpers
 // ---------------------------------------------------------------------------
 
@@ -192,6 +202,9 @@ export interface ChroniclerBridge {
   generateSlug: (name: string, entityType: EntityType) => Promise<string>
   getNextEventTimetrack: () => Promise<number>
   findUnlinkedOccurrences: (body: string) => Promise<UnlinkedMatch[]>
+  getEntityCounts: () => Promise<IndexStats>
+  rebuildIndex: () => Promise<IndexStats>
+  indexExists: () => Promise<boolean>
   // LLM
   extractEntities: (
     provider: Provider,

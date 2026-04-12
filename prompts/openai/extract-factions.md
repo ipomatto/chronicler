@@ -21,6 +21,8 @@ For each faction, determine:
 For existing factions, extract ONLY the new information from this session (new members, events, goal updates, relation changes).
 For new factions, extract all available information (name, category, base of operations, known members, goals).
 
+Use the `extract_factions` function to return your results. Do not answer with plain text.
+
 ## Output Schema
 
 {json_schema}

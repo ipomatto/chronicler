@@ -58,6 +58,12 @@
           "name": "Llama 3.2 (3B)",
           "maxTokens": 4096,
           "supportsFunctionCalling": true
+        },
+        {
+          "id": "llama3",
+          "name": "Llama 3 (8B)",
+          "maxTokens": 4096,
+          "supportsFunctionCalling": true
         }
       ],
       "defaultModel": "llama3.1",

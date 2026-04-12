@@ -19,6 +19,10 @@ For each event:
 2. Extract the event name, category, location, participants, summary, and consequences
 3. Do not assign a timetrack number — this will be assigned automatically
 
+Return ONLY valid JSON matching the output schema.
+Do not call tools or functions.
+Do not include markdown fences or explanatory text.
+
 ## Output Schema
 
 {json_schema}

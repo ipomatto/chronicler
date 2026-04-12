@@ -14,8 +14,9 @@ export default function EntityCard({ entity, entityType, decision, onDecide }: P
   const [showDiff, setShowDiff] = useState(false)
   const [resolving, setResolving] = useState(false)
 
+  const possibleMatches = Array.isArray(entity.possible_matches) ? entity.possible_matches : []
   const isUpdate = !!entity.matched_slug
-  const isAmbiguous = !entity.matched_slug && entity.possible_matches.length > 0
+  const isAmbiguous = !entity.matched_slug && possibleMatches.length > 0
 
   const badge = isUpdate ? 'UPDATE' : isAmbiguous ? 'AMBIGUOUS' : 'NEW'
   const badgeColor = isUpdate ? '#3b82f6' : isAmbiguous ? '#f59e0b' : '#22c55e'
@@ -50,7 +51,7 @@ export default function EntityCard({ entity, entityType, decision, onDecide }: P
             <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>→ {entity.matched_slug}</span>
           )}
           <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>
-            ({Math.round(entity.confidence * 100)}% confidence)
+            ({Math.round((entity.confidence ?? 0) * 100)}% confidence)
           </span>
         </div>
 

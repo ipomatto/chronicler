@@ -20,6 +20,12 @@ For each character, determine:
 
 For existing characters, extract ONLY the new information from this session.
 For new characters, extract all available information.
+For each new character, include at least one body section, usually `Description`, with a short summary based on the text.
+If the text gives only a small amount of information, still write a brief `Description` rather than leaving body_sections empty.
+
+Return ONLY valid JSON matching the output schema.
+Do not call tools or functions.
+Do not include markdown fences or explanatory text.
 
 ## Output Schema
 

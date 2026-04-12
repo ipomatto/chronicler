@@ -20,6 +20,10 @@ For each location, determine:
 
 For existing locations, extract ONLY the new information from this session (new features, events, status changes).
 For new locations, extract all available information (name, category, description, parent location if mentioned).
+For each new location, include at least one body section, usually `Description`, with a short summary based on the text.
+If the text gives only a small amount of information, still write a brief `Description` rather than leaving body_sections empty.
+
+Use the `extract_locations` function to return your results. Do not answer with plain text.
 
 ## Output Schema
 

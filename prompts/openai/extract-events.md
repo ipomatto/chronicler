@@ -19,6 +19,8 @@ For each event:
 2. Extract the event name, category, location, participants, summary, and consequences
 3. Do not assign a timetrack number — this will be assigned automatically
 
+Use the `extract_events` function to return your results. Do not answer with plain text.
+
 ## Output Schema
 
 {json_schema}

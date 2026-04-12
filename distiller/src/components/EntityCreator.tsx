@@ -37,7 +37,7 @@ export default function EntityCreator({ entity, entityType, onCreated, onCancel 
       }
       const today = new Date().toISOString().split('T')[0]
       await window.chronicler.createEntity(entityType, {
-        frontmatter: {
+        frontmatter: sanitizeFrontmatter({
           name: entity.name,
           slug,
           type: entityType.replace(/s$/, ''),
@@ -46,10 +46,8 @@ export default function EntityCreator({ entity, entityType, onCreated, onCancel 
           aliases: [],
           tags: [],
           last_updated: today
-        },
-        body: entity.extracted_data.body_sections
-          .map((s) => `## ${s.section_name}\n\n${s.content}`)
-          .join('\n\n')
+        }, entityType),
+        body: buildBody(entity, entityType)
       })
       onCreated()
     } finally {
@@ -59,6 +57,44 @@ export default function EntityCreator({ entity, entityType, onCreated, onCancel 
 
   const required = REQUIRED_FIELDS[entityType] ?? []
   const missing = required.filter((f) => !fields[f])
+
+  function buildBody(entity: ExtractedEntity, entityType: EntityType): string {
+    const sections = entity.extracted_data.body_sections.filter(
+      (section) => section.section_name.trim() && section.content.trim()
+    )
+
+    if (sections.length === 0) {
+      const heading = entityType === 'events' ? 'Summary' : 'Description'
+      const fallback = entity.reasoning?.trim() || 'Menzionato in sessione, ma senza dettagli strutturati aggiuntivi.'
+      return `## ${heading}\n\n${fallback}`
+    }
+
+    return sections
+      .map((section) => `## ${section.section_name}\n\n${section.content}`)
+      .join('\n\n')
+  }
+
+  function sanitizeFrontmatter(
+    frontmatter: Record<string, unknown>,
+    entityType: EntityType
+  ): Record<string, unknown> {
+    const sanitized: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(frontmatter)) {
+      if (value === null || value === undefined) continue
+      sanitized[key] = value
+    }
+
+    if (entityType === 'characters') {
+      sanitized.category ??= 'npc'
+      sanitized.status ??= 'unknown'
+      sanitized.race ??= ''
+      sanitized.class ??= ''
+    }
+
+    sanitized.aliases = Array.isArray(sanitized.aliases) ? sanitized.aliases : []
+    sanitized.tags = Array.isArray(sanitized.tags) ? sanitized.tags : []
+    return sanitized
+  }
 
   return (
     <div style={{

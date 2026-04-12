@@ -21,6 +21,10 @@ For each faction, determine:
 For existing factions, extract ONLY the new information from this session (new members, events, goal updates, relation changes).
 For new factions, extract all available information (name, category, base of operations, known members, goals).
 
+Return ONLY valid JSON matching the output schema.
+Do not call tools or functions.
+Do not include markdown fences or explanatory text.
+
 ## Output Schema
 
 {json_schema}

@@ -78,7 +78,7 @@ export default function ExtractionReview({ results, sessione, onDone }: Props) {
       }
       const today = new Date().toISOString().split('T')[0]
       await window.chronicler.createEntity(entityType, {
-        frontmatter: {
+        frontmatter: sanitizeFrontmatter({
           name: entity.name,
           slug,
           type: entityType.replace(/s$/, '') as string,
@@ -86,7 +86,7 @@ export default function ExtractionReview({ results, sessione, onDone }: Props) {
           ...(timetrack !== undefined ? { timetrack } : {}),
           last_updated: today,
           sessione
-        },
+        }, entityType),
         body: buildBody(entity)
       })
     }
@@ -144,11 +144,72 @@ export default function ExtractionReview({ results, sessione, onDone }: Props) {
   }
 
   function buildBody(entity: ExtractedEntity): string {
+    const sections = entity.extracted_data.body_sections.filter(
+      (section) => section.section_name.trim() && section.content.trim()
+    )
+
+    if (sections.length === 0) {
+      const fallbackSection = defaultSectionName(entityTypeFromEntity(entity))
+      const fallbackContent = entity.reasoning?.trim() || 'Menzionato in sessione, ma senza dettagli strutturati aggiuntivi.'
+      return `## ${fallbackSection}\n\n${fallbackContent}`
+    }
+
     const parts: string[] = []
-    for (const section of entity.extracted_data.body_sections) {
+    for (const section of sections) {
       parts.push(`## ${section.section_name}\n\n${section.content}`)
     }
     return parts.join('\n\n')
+  }
+
+  function entityTypeFromEntity(entity: ExtractedEntity): EntityType {
+    for (const result of results) {
+      if (result.entities.includes(entity)) return result.entity_type
+    }
+    return 'characters'
+  }
+
+  function defaultSectionName(entityType: EntityType): string {
+    if (entityType === 'events') return 'Summary'
+    if (entityType === 'locations') return 'Description'
+    if (entityType === 'factions') return 'Description'
+    return 'Description'
+  }
+
+  function sanitizeFrontmatter(
+    frontmatter: Record<string, unknown>,
+    entityType: EntityType
+  ): Record<string, unknown> {
+    const sanitized: Record<string, unknown> = {}
+
+    for (const [key, value] of Object.entries(frontmatter)) {
+      if (value === null || value === undefined) continue
+      sanitized[key] = value
+    }
+
+    if (entityType === 'characters') {
+      sanitized.category ??= 'npc'
+      sanitized.status ??= 'unknown'
+      sanitized.race ??= ''
+      sanitized.class ??= ''
+      sanitized.aliases = Array.isArray(sanitized.aliases) ? sanitized.aliases : []
+      sanitized.tags = Array.isArray(sanitized.tags) ? sanitized.tags : []
+    }
+
+    if (entityType === 'locations') {
+      sanitized.status ??= 'unknown'
+      sanitized.tags = Array.isArray(sanitized.tags) ? sanitized.tags : []
+    }
+
+    if (entityType === 'factions') {
+      sanitized.status ??= 'unknown'
+      sanitized.tags = Array.isArray(sanitized.tags) ? sanitized.tags : []
+    }
+
+    if (entityType === 'events') {
+      sanitized.tags = Array.isArray(sanitized.tags) ? sanitized.tags : []
+    }
+
+    return sanitized
   }
 
   const totalEntities = results.reduce((n, r) => n + r.entities.length, 0)

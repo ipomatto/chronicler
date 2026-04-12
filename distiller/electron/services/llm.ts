@@ -211,7 +211,9 @@ export class LLMService {
 
       const result = this.config.provider === 'anthropic'
         ? await this.callAnthropic(entityType, filledPrompt)
-        : await this.callOpenAI(entityType, prompt.data.function_name as string, filledPrompt)
+        : this.config.provider === 'ollama'
+          ? await this.callOllama(entityType, filledPrompt)
+          : await this.callOpenAI(entityType, prompt.data.function_name as string, filledPrompt)
 
       console.log(`[LLM] ${ts()} ✓ extractEntities  ${entityType}  entities: ${result.entities.length}`)
       return result
@@ -306,6 +308,18 @@ export class LLMService {
     }
   }
 
+  private async callOllama(
+    entityType: EntityType,
+    filledPrompt: string
+  ): Promise<ExtractionResult> {
+    const response = await this.openaiClient!.chat.completions.create({
+      model: this.config.model,
+      temperature: this.config.temperature ?? 0.3,
+      messages: [{ role: 'user', content: filledPrompt }]
+    })
+    return this.parseOpenAIContentResponse(response, entityType)
+  }
+
   // ---------------------------------------------------------------------------
   // Response parsing
   // ---------------------------------------------------------------------------
@@ -321,7 +335,7 @@ export class LLMService {
     const input = toolUse.input as { entities: ExtractedEntity[] }
     return {
       entity_type: entityType,
-      entities: input.entities ?? []
+      entities: this.normalizeExtractedEntities(input.entities)
     }
   }
 
@@ -329,14 +343,44 @@ export class LLMService {
     response: OpenAI.Chat.ChatCompletion,
     entityType: EntityType
   ): ExtractionResult {
-    const toolCall = response.choices[0]?.message?.tool_calls?.[0]
-    if (!toolCall?.function?.arguments) {
-      throw new Error(`OpenAI response contains no function call for entity type "${entityType}"`)
+    const message = response.choices[0]?.message
+    const toolArgs = message?.tool_calls?.[0]?.function?.arguments
+    const legacyFunctionArgs = (message as OpenAI.Chat.ChatCompletionMessage & {
+      function_call?: { arguments?: string }
+    } | undefined)?.function_call?.arguments
+    const contentArgs = this.extractJsonFromOpenAIContent(message?.content)
+    const rawArgs = toolArgs ?? legacyFunctionArgs ?? contentArgs
+
+    if (!rawArgs) {
+      const finishReason = response.choices[0]?.finish_reason ?? 'unknown'
+      throw new Error(
+        `OpenAI response contains no function call for entity type "${entityType}" (finish_reason: ${finishReason})`
+      )
     }
-    const parsed = JSON.parse(toolCall.function.arguments) as { entities: ExtractedEntity[] }
+
+    const parsed = this.parseExtractionJson(rawArgs) as { entities: ExtractedEntity[] }
     return {
       entity_type: entityType,
-      entities: parsed.entities ?? []
+      entities: this.normalizeExtractedEntities(parsed.entities)
+    }
+  }
+
+  parseOpenAIContentResponse(
+    response: OpenAI.Chat.ChatCompletion,
+    entityType: EntityType
+  ): ExtractionResult {
+    const rawContent = this.extractJsonFromOpenAIContent(response.choices[0]?.message?.content)
+    if (!rawContent) {
+      const finishReason = response.choices[0]?.finish_reason ?? 'unknown'
+      throw new Error(
+        `OpenAI-compatible response contains no JSON content for entity type "${entityType}" (finish_reason: ${finishReason})`
+      )
+    }
+
+    const parsed = this.parseExtractionJson(rawContent) as { entities: ExtractedEntity[] }
+    return {
+      entity_type: entityType,
+      entities: this.normalizeExtractedEntities(parsed.entities)
     }
   }
 
@@ -352,5 +396,199 @@ export class LLMService {
         return `- ${e.name} [${e.slug}]${aliases}`
       })
       .join('\n')
+  }
+
+  private extractJsonFromOpenAIContent(
+    content: OpenAI.Chat.ChatCompletionMessage['content'] | null | undefined
+  ): string | null {
+    if (typeof content === 'string') {
+      return this.extractJsonObjectString(content)
+    }
+
+    if (!Array.isArray(content)) return null
+
+    const textContent = content
+      .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
+      .map((part) => part.text)
+      .join('\n')
+      .trim()
+
+    return this.extractJsonObjectString(textContent)
+  }
+
+  private extractJsonObjectString(text: string): string | null {
+    const trimmed = text.trim()
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) return trimmed
+
+    const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)
+    if (fencedMatch?.[1]) {
+      const fenced = fencedMatch[1].trim()
+      if (fenced.startsWith('{') && fenced.endsWith('}')) return fenced
+    }
+
+    const firstBrace = trimmed.indexOf('{')
+    const lastBrace = trimmed.lastIndexOf('}')
+    if (firstBrace >= 0 && lastBrace > firstBrace) {
+      return trimmed.slice(firstBrace, lastBrace + 1)
+    }
+
+    return null
+  }
+
+  private parseExtractionJson(raw: string): unknown {
+    try {
+      return JSON.parse(raw)
+    } catch (error) {
+      const repaired = this.repairInvalidJsonEscapes(raw)
+      if (repaired !== raw) {
+        try {
+          return JSON.parse(repaired)
+        } catch {
+          // Fall through to tolerant recovery below.
+        }
+      }
+
+      const recovered = this.recoverEntitiesPayload(repaired)
+      if (recovered) return recovered
+      throw error
+    }
+  }
+
+  private repairInvalidJsonEscapes(raw: string): string {
+    let repaired = ''
+
+    for (let i = 0; i < raw.length; i += 1) {
+      const char = raw[i]
+      if (char !== '\\') {
+        repaired += char
+        continue
+      }
+
+      const next = raw[i + 1]
+      if (next && /["\\/bfnrtu]/.test(next)) {
+        repaired += char
+        continue
+      }
+
+      repaired += '\\\\'
+    }
+
+    return repaired
+  }
+
+  private recoverEntitiesPayload(raw: string): { entities: ExtractedEntity[] } | null {
+    const entitiesIndex = raw.indexOf('"entities"')
+    if (entitiesIndex < 0) return null
+
+    const arrayStart = raw.indexOf('[', entitiesIndex)
+    if (arrayStart < 0) return null
+
+    const objects: ExtractedEntity[] = []
+    let depth = 0
+    let stringQuote = false
+    let escaping = false
+    let objectStart = -1
+
+    for (let i = arrayStart; i < raw.length; i += 1) {
+      const char = raw[i]
+
+      if (stringQuote) {
+        if (escaping) {
+          escaping = false
+          continue
+        }
+        if (char === '\\') {
+          escaping = true
+          continue
+        }
+        if (char === '"') {
+          stringQuote = false
+        }
+        continue
+      }
+
+      if (char === '"') {
+        stringQuote = true
+        continue
+      }
+
+      if (char === '{') {
+        if (depth === 0) objectStart = i
+        depth += 1
+        continue
+      }
+
+      if (char === '}') {
+        depth -= 1
+        if (depth === 0 && objectStart >= 0) {
+          const candidate = raw.slice(objectStart, i + 1)
+          try {
+            objects.push(JSON.parse(candidate) as ExtractedEntity)
+          } catch {
+            // Skip malformed entity objects and continue recovering the rest.
+          }
+          objectStart = -1
+        }
+        continue
+      }
+
+      if (char === ']' && depth === 0) {
+        break
+      }
+    }
+
+    return objects.length > 0 ? { entities: objects } : null
+  }
+
+  private normalizeExtractedEntities(entities: unknown): ExtractedEntity[] {
+    if (!Array.isArray(entities)) return []
+
+    return entities
+      .map((entity) => this.normalizeExtractedEntity(entity))
+      .filter((entity): entity is ExtractedEntity => entity !== null)
+  }
+
+  private normalizeExtractedEntity(entity: unknown): ExtractedEntity | null {
+    if (!entity || typeof entity !== 'object') return null
+
+    const raw = entity as Record<string, unknown>
+    const name = typeof raw.name === 'string' ? raw.name.trim() : ''
+    if (!name) return null
+
+    const extractedData =
+      raw.extracted_data && typeof raw.extracted_data === 'object'
+        ? raw.extracted_data as Record<string, unknown>
+        : {}
+
+    const frontmatter =
+      extractedData.frontmatter && typeof extractedData.frontmatter === 'object'
+        ? extractedData.frontmatter as Record<string, unknown>
+        : {}
+
+    const bodySectionsRaw = Array.isArray(extractedData.body_sections)
+      ? extractedData.body_sections
+      : []
+
+    return {
+      name,
+      matched_slug: typeof raw.matched_slug === 'string' ? raw.matched_slug : null,
+      possible_matches: Array.isArray(raw.possible_matches)
+        ? raw.possible_matches.filter((item): item is string => typeof item === 'string')
+        : [],
+      confidence: typeof raw.confidence === 'number' && Number.isFinite(raw.confidence)
+        ? raw.confidence
+        : 0,
+      reasoning: typeof raw.reasoning === 'string' ? raw.reasoning : '',
+      extracted_data: {
+        frontmatter,
+        body_sections: bodySectionsRaw
+          .filter((section): section is Record<string, unknown> => !!section && typeof section === 'object')
+          .map((section) => ({
+            section_name: typeof section.section_name === 'string' ? section.section_name : 'Description',
+            content: typeof section.content === 'string' ? section.content : '',
+            mode: section.mode === 'append' ? 'append' : 'replace'
+          }))
+      }
+    }
   }
 }

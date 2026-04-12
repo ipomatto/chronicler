@@ -19,7 +19,8 @@ export default function EntityCard({ entity, entityType, decision, onDecide, onR
 
   const effectiveMatchedSlug = localMatchedSlug !== undefined ? localMatchedSlug : entity.matched_slug
   const isUpdate = !!effectiveMatchedSlug
-  const isAmbiguous = localMatchedSlug === undefined && !entity.matched_slug && (entity.possible_matches?.length ?? 0) > 0
+  const possibleMatches = Array.isArray(entity.possible_matches) ? entity.possible_matches : []
+  const isAmbiguous = localMatchedSlug === undefined && !entity.matched_slug && possibleMatches.length > 0
 
   const badge = isAmbiguous ? 'AMBIGUOUS' : isUpdate ? 'UPDATE' : 'NEW'
   const badgeColor = isAmbiguous ? '#f59e0b' : isUpdate ? '#3b82f6' : '#22c55e'

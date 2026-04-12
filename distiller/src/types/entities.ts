@@ -1,6 +1,6 @@
 export type EntityType = 'characters' | 'locations' | 'factions' | 'events'
 
-export type Provider = 'openai' | 'anthropic'
+export type Provider = 'openai' | 'anthropic' | 'ollama'
 
 // ---------------------------------------------------------------------------
 // Frontmatter shapes per entity type
@@ -140,12 +140,14 @@ export interface ProviderConfig {
   models: ModelConfig[]
   defaultModel: string
   defaultTemperature: number
+  baseUrl?: string  // used by Ollama (default: http://localhost:11434)
 }
 
 export interface LLMConfig {
   providers: {
     openai: ProviderConfig
     anthropic: ProviderConfig
+    ollama: ProviderConfig
   }
 }
 

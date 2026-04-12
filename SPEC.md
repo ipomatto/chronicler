@@ -20,7 +20,7 @@ The system is composed of three modules:
 | ------------- | --------------------------------- |
 | Desktop shell | Electron                          |
 | Frontend      | Vite + React + TypeScript         |
-| LLM Provider  | Configurable (OpenAI / Anthropic) |
+| LLM Provider  | Configurable (OpenAI / Anthropic / Ollama) |
 | Storage       | Local filesystem (Markdown files) |
 | Format        | Obsidian-compatible `.md`         |
 
@@ -394,16 +394,16 @@ The matcher returns all candidates above a configurable threshold, scored and ra
 │  UI presents entities grouped by type:                  │
 │                                                         │
 │  ┌─ Characters ─────────────────────────────────────┐   │
-│  │ ✏️  Thalion Ombraverde [UPDATE]                   │   │
+│  │ ✏️  Thalion Ombraverde [UPDATE]                  │   │
 │  │    Fields to update: status, key_events          │   │
 │  │    [Approve] [Edit] [Skip]                       │   │
 │  │                                                  │   │
-│  │ ➕ Capitano Brennan [NEW]                         │   │
-│  │    Extracted: name, role                          │   │
+│  │ ➕ Capitano Brennan [NEW]                        │   │
+│  │    Extracted: name, role                         │   │
 │  │    Missing: race, class, description             │   │
 │  │    [Complete & Create] [Skip]                    │   │
 │  │                                                  │   │
-│  │ ❓ "Marco" [AMBIGUOUS]                            │   │
+│  │ ❓ "Marco" [AMBIGUOUS]                           │   │
 │  │    Could be: Marco il Grande, Marco Polo         │   │
 │  │    [Pick match] [Create new]                     │   │
 │  └──────────────────────────────────────────────────┘   │
@@ -495,7 +495,12 @@ prompts/
 │   ├── extract-locations.md
 │   ├── extract-factions.md
 │   └── extract-events.md
-└── anthropic/
+├── anthropic/
+│   ├── extract-characters.md
+│   ├── extract-locations.md
+│   ├── extract-factions.md
+│   └── extract-events.md
+└── ollama/
     ├── extract-characters.md
     ├── extract-locations.md
     ├── extract-factions.md
@@ -590,9 +595,37 @@ All LLM configuration lives in `config/llm.json`, editable without rebuilding:
       ],
       "defaultModel": "claude-sonnet-4-20250514",
       "defaultTemperature": 0.3
+    },
+    "ollama": {
+      "baseUrl": "http://localhost:11434",
+      "models": [
+        {
+          "id": "llama3.1",
+          "name": "Llama 3.1 (8B)",
+          "maxTokens": 4096,
+          "supportsFunctionCalling": true
+        },
+        {
+          "id": "llama3.1:70b",
+          "name": "Llama 3.1 (70B)",
+          "maxTokens": 4096,
+          "supportsFunctionCalling": true
+        },
+        {
+          "id": "llama3.2",
+          "name": "Llama 3.2 (3B)",
+          "maxTokens": 4096,
+          "supportsFunctionCalling": true
+        }
+      ],
+      "defaultModel": "llama3.1",
+      "defaultTemperature": 0.3
     }
   }
 }
+```
+
+> **Ollama**: nessuna API key richiesta. Il campo `baseUrl` indica l'indirizzo del server Ollama locale (default `http://localhost:11434`). L'app usa l'endpoint OpenAI-compatibile di Ollama (`/v1/chat/completions`) tramite l'SDK OpenAI con chiave fittizia.
 ```
 
 App-level configuration in `config/app.json`:
@@ -613,6 +646,8 @@ App-level configuration in `config/app.json`:
 ```
 
 API keys are **NOT** stored in config files. They are managed separately in Electron's `safeStorage` (encrypted at rest) and entered via the Settings UI.
+
+**Ollama** does not require an API key. The Settings UI shows Ollama in a separate section with a note to ensure the local server is running.
 
 #### Model Selection at Input Time
 

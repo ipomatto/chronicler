@@ -160,9 +160,10 @@ const TOOL_DESCRIPTIONS: Record<EntityType, string> = {
 export interface LLMServiceConfig {
   provider: Provider
   model: string
-  apiKey: string
+  apiKey: string       // empty string for ollama (no key required)
   temperature?: number
   promptsBasePath: string
+  baseUrl?: string     // Ollama base URL, e.g. http://localhost:11434
 }
 
 export interface PromptFile {
@@ -177,8 +178,14 @@ export class LLMService {
   constructor(private readonly config: LLMServiceConfig) {
     if (config.provider === 'anthropic') {
       this.anthropicClient = new Anthropic({ apiKey: config.apiKey })
-    } else {
+    } else if (config.provider === 'openai') {
       this.openaiClient = new OpenAI({ apiKey: config.apiKey })
+    } else {
+      // ollama: OpenAI-compatible API, no real key needed
+      this.openaiClient = new OpenAI({
+        apiKey: 'ollama',
+        baseURL: `${config.baseUrl ?? 'http://localhost:11434'}/v1`
+      })
     }
   }
 

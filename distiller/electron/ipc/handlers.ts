@@ -77,13 +77,23 @@ export function registerHandlers(ctx: HandlerContext): void {
       recapText: string,
       knownEntities: KnownEntity[]
     ) => {
-      const apiKey = await loadApiKey(ctx.keysFilePath, provider)
-      if (!apiKey) throw new Error(`API key for "${provider}" is not configured`)
+      let apiKey = ''
+      let baseUrl: string | undefined
+
+      if (provider === 'ollama') {
+        const raw = await fs.readFile(path.join(ctx.configBasePath, 'llm.json'), 'utf-8')
+        const llmConfig = JSON.parse(raw) as LLMConfig
+        baseUrl = llmConfig.providers.ollama?.baseUrl
+      } else {
+        apiKey = await loadApiKey(ctx.keysFilePath, provider) ?? ''
+        if (!apiKey) throw new Error(`API key for "${provider}" is not configured`)
+      }
 
       const service = new LLMService({
         provider,
         model,
         apiKey,
+        baseUrl,
         promptsBasePath: ctx.promptsBasePath
       })
       return service.extractEntities(entityType, recapText, knownEntities)

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Provider } from '../types/entities'
 
-const PROVIDERS: Provider[] = ['anthropic', 'openai']
+const API_KEY_PROVIDERS: Provider[] = ['anthropic', 'openai']
 
 export default function Settings() {
   const [keys, setKeys] = useState<Partial<Record<Provider, string>>>({})
@@ -10,7 +10,7 @@ export default function Settings() {
 
   useEffect(() => {
     Promise.all(
-      PROVIDERS.map((p) =>
+      API_KEY_PROVIDERS.map((p) =>
         window.chronicler.getApiKey(p).then((k) => ({ provider: p, key: k ?? '' }))
       )
     ).then((results) => {
@@ -40,7 +40,7 @@ export default function Settings() {
         API Keys
       </h3>
 
-      {PROVIDERS.map((provider) => (
+      {API_KEY_PROVIDERS.map((provider) => (
         <div key={provider} style={{ marginBottom: 20 }}>
           <label style={{ display: 'block', marginBottom: 6, textTransform: 'capitalize', fontWeight: 600 }}>
             {provider}
@@ -65,6 +65,20 @@ export default function Settings() {
           </p>
         </div>
       ))}
+
+      <div style={{ marginBottom: 20 }}>
+        <label style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>
+          Ollama (locale)
+        </label>
+        <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>
+          Nessuna API key necessaria. Assicurati che Ollama sia in esecuzione
+          prima di avviare l&apos;estrazione.
+        </p>
+        <p style={{ marginTop: 4, fontSize: 11, color: 'var(--text-muted)' }}>
+          URL di default: <code>http://localhost:11434</code> — modificabile in{' '}
+          <code>config/llm.json</code>.
+        </p>
+      </div>
     </div>
   )
 }

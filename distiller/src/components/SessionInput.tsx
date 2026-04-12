@@ -53,6 +53,7 @@ export default function SessionInput({ onComplete }: Props) {
           <select value={provider} onChange={(e) => setProvider(e.target.value as Provider)}>
             <option value="anthropic">Anthropic</option>
             <option value="openai">OpenAI</option>
+            <option value="ollama">Ollama (locale)</option>
           </select>
         </div>
         <div>

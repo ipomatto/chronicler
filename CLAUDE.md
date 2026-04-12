@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Chronicler is a system for tracking D&D campaign entities across multiple groups in a shared world. It uses LLM APIs (OpenAI/Anthropic, configurable) to extract structured entities from unstructured session recaps, and stores them as Obsidian-compatible Markdown files.
+Chronicler is a system for tracking D&D campaign entities across multiple groups in a shared world. It uses LLM APIs (OpenAI/Anthropic/Ollama, configurable) to extract structured entities from unstructured session recaps, and stores them as Obsidian-compatible Markdown files.
 
 The project has three modules: **Distiller** (Electron + React app), **Storage** (filesystem `.md` files), and **Viewer** (TBD).
 
@@ -17,6 +17,7 @@ The project has three modules: **Distiller** (Electron + React app), **Storage**
 - **LLM outputs structured JSON** via function calling / tool_use  - parsed and converted to .md by the app
 - **Prompts are external files** in `prompts/{provider}/`  - editable without rebuild, provider-specific
 - **All config is external** in `config/`  - editable without rebuild
+- **Ollama support**: local inference via Ollama, no API key needed. Uses OpenAI-compatible API (`/v1`). `baseUrl` configurable in `config/llm.json` (default `http://localhost:11434`)
 
 ## Entity Types
 

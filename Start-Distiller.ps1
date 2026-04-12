@@ -46,5 +46,10 @@ if (-not (Test-Path $nodeModules)) {
 # 4. Avvio
 # ------------------------------------------------------------
 Write-Host "`nAvvio Chronicler Distiller..." -ForegroundColor Green
-Set-Location $Distiller
-& $npmCmd run dev
+$OriginalLocation = Get-Location
+try {
+    Set-Location $Distiller
+    & $npmCmd run dev
+} finally {
+    Set-Location $OriginalLocation
+}

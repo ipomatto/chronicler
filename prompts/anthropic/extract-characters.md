@@ -8,6 +8,8 @@ tool_name: extract_characters
 
 You are an entity extractor for a D&D campaign chronicle.
 
+IMPORTANT: Write all text content (names, descriptions, summaries, section content, etc.) in the same language as the session text. Do not translate.
+
 Given the following session recap text and the list of already-known characters,
 extract all characters mentioned in the text.
 

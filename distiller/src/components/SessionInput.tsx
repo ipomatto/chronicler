@@ -12,7 +12,14 @@ export default function SessionInput({ onComplete }: Props) {
   const [model, setModel] = useState('')
   const [llmConfig, setLlmConfig] = useState<LLMConfig | null>(null)
 
-  const { extractAll, progress, isExtracting, error } = useExtraction()
+  const { extractAll, progress, startTimes, counts, isExtracting, error } = useExtraction()
+  const [, setTick] = useState(0)
+
+  useEffect(() => {
+    if (!isExtracting) return
+    const interval = setInterval(() => setTick((t) => t + 1), 1000)
+    return () => clearInterval(interval)
+  }, [isExtracting])
 
   useEffect(() => {
     window.chronicler.getLLMConfig().then((cfg) => {
@@ -71,15 +78,26 @@ export default function SessionInput({ onComplete }: Props) {
       {/* Progress */}
       {isExtracting && (
         <div style={{ marginBottom: 16, padding: 12, background: 'var(--surface)', borderRadius: 'var(--radius)' }}>
-          {(['characters', 'locations', 'factions', 'events'] as const).map((type) => (
-            <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <span style={{ width: 12, height: 12, borderRadius: '50%', background:
-                progress[type] === 'done' ? '#22c55e' :
-                progress[type] === 'loading' ? 'var(--accent)' : 'var(--border)'
-              }} />
-              <span style={{ textTransform: 'capitalize', color: 'var(--text-muted)' }}>{type}</span>
-            </div>
-          ))}
+          {(['characters', 'locations', 'factions', 'events'] as const).map((type) => {
+            const state = progress[type]
+            const elapsed = startTimes[type] != null ? Math.floor((Date.now() - startTimes[type]!) / 1000) : 0
+            return (
+              <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <span style={{ width: 12, height: 12, borderRadius: '50%', flexShrink: 0, background:
+                  state === 'done' ? '#22c55e' :
+                  state === 'error' ? '#f87171' :
+                  state === 'loading' ? 'var(--accent)' : 'var(--border)'
+                }} />
+                <span style={{ textTransform: 'capitalize', color: 'var(--text-muted)', minWidth: 80 }}>{type}</span>
+                {state === 'loading' && (
+                  <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{elapsed}s…</span>
+                )}
+                {state === 'done' && (
+                  <span style={{ color: '#22c55e', fontSize: 12 }}>ok, trovate: {counts[type]} entità</span>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
 

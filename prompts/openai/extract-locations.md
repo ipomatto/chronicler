@@ -8,6 +8,8 @@ function_name: extract_locations
 
 You are an entity extractor for a D&D campaign chronicle.
 
+IMPORTANT: Write all text content (names, descriptions, summaries, section content, etc.) in the same language as the session text. Do not translate.
+
 Given the following session recap text and the list of already-known locations,
 extract all locations mentioned in the text.
 

@@ -1,9 +1,7 @@
 # ── Generated entity files (runtime output — not source) ─────────────────────
 data/**/*.md
 
-# ── Sample session documents (large / private raw recaps) ────────────────────
-docs/sample/*
-data/sample/*
+
 
 # ── Electron / Node build artefacts ──────────────────────────────────────────
 distiller/node_modules/

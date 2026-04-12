@@ -7,6 +7,13 @@ type Progress = Record<EntityType, ProgressState>
 
 const ENTITY_TYPES: EntityType[] = ['characters', 'locations', 'factions', 'events']
 
+const NULL_TIMES: Record<EntityType, number | null> = {
+  characters: null, locations: null, factions: null, events: null
+}
+const ZERO_COUNTS: Record<EntityType, number> = {
+  characters: 0, locations: 0, factions: 0, events: 0
+}
+
 export function useExtraction() {
   const [isExtracting, setIsExtracting] = useState(false)
   const [progress, setProgress] = useState<Progress>({
@@ -15,10 +22,15 @@ export function useExtraction() {
     factions: 'idle',
     events: 'idle'
   })
+  const [startTimes, setStartTimes] = useState<Record<EntityType, number | null>>(NULL_TIMES)
+  const [counts, setCounts] = useState<Record<EntityType, number>>(ZERO_COUNTS)
   const [error, setError] = useState<string | null>(null)
 
   function setTypeProgress(type: EntityType, state: ProgressState) {
     setProgress((prev) => ({ ...prev, [type]: state }))
+    if (state === 'loading') {
+      setStartTimes((prev) => ({ ...prev, [type]: Date.now() }))
+    }
   }
 
   async function extractAll(
@@ -29,6 +41,8 @@ export function useExtraction() {
     setIsExtracting(true)
     setError(null)
     setProgress({ characters: 'idle', locations: 'idle', factions: 'idle', events: 'idle' })
+    setStartTimes({ ...NULL_TIMES })
+    setCounts({ ...ZERO_COUNTS })
 
     try {
       // Run all 4 extraction calls in parallel
@@ -50,6 +64,7 @@ export function useExtraction() {
             recapText,
             knownEntities
           )
+          setCounts((prev) => ({ ...prev, [entityType]: result.entities.length }))
           setTypeProgress(entityType, 'done')
           return result
         } catch (err) {
@@ -68,5 +83,5 @@ export function useExtraction() {
     }
   }
 
-  return { extractAll, progress, isExtracting, error }
+  return { extractAll, progress, startTimes, counts, isExtracting, error }
 }

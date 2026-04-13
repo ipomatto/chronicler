@@ -20,7 +20,7 @@ export default function SessionInput({ onComplete }: Props) {
 
   const [fingerprintWarning, setFingerprintWarning] = useState<FingerprintMatch | null>(null)
 
-  const { extractAll, progress, startTimes, counts, isExtracting, error } = useExtraction()
+  const { extractAll, progress, startTimes, counts, tokenUsage, isExtracting, error } = useExtraction()
   const [, setTick] = useState(0)
 
   useEffect(() => {
@@ -141,6 +141,11 @@ export default function SessionInput({ onComplete }: Props) {
               </div>
             )
           })}
+          {tokenUsage.input > 0 && (
+            <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-muted)' }}>
+              Tokens: {tokenUsage.input.toLocaleString()} in / {tokenUsage.output.toLocaleString()} out
+            </div>
+          )}
         </div>
       )}
 

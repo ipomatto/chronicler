@@ -122,9 +122,15 @@ export interface ExtractedEntity {
   reasoning: string
 }
 
+export interface TokenUsage {
+  input: number
+  output: number
+}
+
 export interface ExtractionResult {
   entity_type: EntityType
   entities: ExtractedEntity[]
+  usage: TokenUsage | null   // null when the provider doesn't report it (e.g. Ollama)
 }
 
 // ---------------------------------------------------------------------------

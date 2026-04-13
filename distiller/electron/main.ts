@@ -1,6 +1,8 @@
 import { app, BrowserWindow, shell, Menu } from 'electron'
+import fs from 'node:fs'
 import path from 'node:path'
 import { registerHandlers } from './ipc/handlers'
+import type { AppConfig } from '../src/types/entities'
 
 process.on('uncaughtException', (err) => {
   console.error('[MAIN] uncaughtException', err)
@@ -20,6 +22,17 @@ function resolveProjectPath(...segments: string[]): string {
   }
   // In dev: __dirname = out/main/, project root is 3 levels up
   return path.join(__dirname, '../../..', ...segments)
+}
+
+function loadDevToolsSetting(): boolean {
+  try {
+    const configPath = resolveProjectPath('config', 'app.json')
+    const raw = fs.readFileSync(configPath, 'utf-8')
+    const config = JSON.parse(raw) as AppConfig & { ui?: { devtools?: boolean } }
+    return config.ui?.devtools === true
+  } catch {
+    return false
+  }
 }
 
 function createWindow(): BrowserWindow {
@@ -50,7 +63,13 @@ function createWindow(): BrowserWindow {
 
   if (process.env['ELECTRON_RENDERER_URL']) {
     win.loadURL(process.env['ELECTRON_RENDERER_URL'])
-    win.webContents.openDevTools()
+
+    // Open DevTools only if explicitly enabled via env var or config
+    const devtoolsEnabled =
+      process.env['CHRONICLER_DEVTOOLS'] === '1' || loadDevToolsSetting()
+    if (devtoolsEnabled) {
+      win.webContents.openDevTools()
+    }
   } else {
     win.loadFile(path.join(__dirname, '../renderer/index.html'))
   }

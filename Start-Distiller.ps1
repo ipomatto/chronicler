@@ -1,7 +1,15 @@
 # ============================================================
 # Start-Distiller.ps1
 # Avvia Chronicler Distiller in modalita' sviluppo
+#
+# Uso:
+#   .\Start-Distiller.ps1            # DevTools chiusi
+#   .\Start-Distiller.ps1 -DevTools  # DevTools aperti
 # ============================================================
+
+param(
+  [switch]$DevTools
+)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -43,7 +51,14 @@ if (-not (Test-Path $nodeModules)) {
 }
 
 # ------------------------------------------------------------
-# 4. Avvio
+# 4. Flag -DevTools → imposta env var per il main process
+# ------------------------------------------------------------
+if ($DevTools) {
+    $env:CHRONICLER_DEVTOOLS = '1'
+}
+
+# ------------------------------------------------------------
+# 5. Avvio
 # ------------------------------------------------------------
 Write-Host "`nAvvio Chronicler Distiller..." -ForegroundColor Green
 $OriginalLocation = Get-Location

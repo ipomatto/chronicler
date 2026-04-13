@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { EntityType, ExtractionResult, KnownEntity, Provider } from '../types/entities'
+import type { EntityType, ExtractionResult, KnownEntity, Provider, TokenUsage } from '../types/entities'
 
 type ProgressState = 'idle' | 'loading' | 'done' | 'error'
 
@@ -24,6 +24,7 @@ export function useExtraction() {
   })
   const [startTimes, setStartTimes] = useState<Record<EntityType, number | null>>(NULL_TIMES)
   const [counts, setCounts] = useState<Record<EntityType, number>>(ZERO_COUNTS)
+  const [tokenUsage, setTokenUsage] = useState<TokenUsage>({ input: 0, output: 0 })
   const [error, setError] = useState<string | null>(null)
 
   function setTypeProgress(type: EntityType, state: ProgressState) {
@@ -43,6 +44,7 @@ export function useExtraction() {
     setProgress({ characters: 'idle', locations: 'idle', factions: 'idle', events: 'idle' })
     setStartTimes({ ...NULL_TIMES })
     setCounts({ ...ZERO_COUNTS })
+    setTokenUsage({ input: 0, output: 0 })
 
     try {
       // Run all 4 extraction calls in parallel
@@ -65,6 +67,12 @@ export function useExtraction() {
             knownEntities
           )
           setCounts((prev) => ({ ...prev, [entityType]: result.entities.length }))
+          if (result.usage) {
+            setTokenUsage((prev) => ({
+              input: prev.input + result.usage!.input,
+              output: prev.output + result.usage!.output
+            }))
+          }
           setTypeProgress(entityType, 'done')
           return result
         } catch (err) {
@@ -83,5 +91,5 @@ export function useExtraction() {
     }
   }
 
-  return { extractAll, progress, startTimes, counts, isExtracting, error }
+  return { extractAll, progress, startTimes, counts, tokenUsage, isExtracting, error }
 }

@@ -8,7 +8,8 @@ import type {
   ExtractionResult,
   ExtractedEntity,
   KnownEntity,
-  Provider
+  Provider,
+  TokenUsage
 } from '../../src/types/entities'
 
 const ts = () => new Date().toLocaleTimeString('it-IT', { hour12: false })
@@ -276,8 +277,13 @@ export class LLMService {
         tool_choice: { type: 'any' },
         messages: [{ role: 'user', content: filledPrompt }]
       })
-      console.log(`[LLM] ${ts()} ← Anthropic  type: ${entityType}  in: ${response.usage.input_tokens}  out: ${response.usage.output_tokens}  stop: ${response.stop_reason}`)
-      return this.parseAnthropicResponse(response, entityType)
+      console.log(`[LLM] ${ts()} <- Anthropic  type: ${entityType}  in: ${response.usage.input_tokens}  out: ${response.usage.output_tokens}  stop: ${response.stop_reason}`)
+      const result = this.parseAnthropicResponse(response, entityType)
+      result.usage = {
+        input: response.usage.input_tokens,
+        output: response.usage.output_tokens
+      }
+      return result
     } catch (err) {
       console.error(`[LLM] ${ts()} ERR Anthropic error  type: ${entityType}`, err)
       throw err
@@ -300,8 +306,15 @@ export class LLMService {
         tool_choice: { type: 'function', function: { name: functionName } },
         messages: [{ role: 'user', content: filledPrompt }]
       })
-      console.log(`[LLM] ${ts()} ← ${providerLabel}  type: ${entityType}  in: ${response.usage?.prompt_tokens ?? '?'}  out: ${response.usage?.completion_tokens ?? '?'}`)
-      return this.parseOpenAIResponse(response, entityType)
+      console.log(`[LLM] ${ts()} <- ${providerLabel}  type: ${entityType}  in: ${response.usage?.prompt_tokens ?? '?'}  out: ${response.usage?.completion_tokens ?? '?'}`)
+      const result = this.parseOpenAIResponse(response, entityType)
+      if (response.usage) {
+        result.usage = {
+          input: response.usage.prompt_tokens,
+          output: response.usage.completion_tokens
+        }
+      }
+      return result
     } catch (err) {
       console.error(`[LLM] ${ts()} ERR ${providerLabel} error  type: ${entityType}`, err)
       throw err
@@ -335,7 +348,8 @@ export class LLMService {
     const input = toolUse.input as { entities: ExtractedEntity[] }
     return {
       entity_type: entityType,
-      entities: this.normalizeExtractedEntities(input.entities)
+      entities: this.normalizeExtractedEntities(input.entities),
+      usage: null
     }
   }
 
@@ -361,7 +375,8 @@ export class LLMService {
     const parsed = this.parseExtractionJson(rawArgs) as { entities: ExtractedEntity[] }
     return {
       entity_type: entityType,
-      entities: this.normalizeExtractedEntities(parsed.entities)
+      entities: this.normalizeExtractedEntities(parsed.entities),
+      usage: null
     }
   }
 
@@ -380,7 +395,8 @@ export class LLMService {
     const parsed = this.parseExtractionJson(rawContent) as { entities: ExtractedEntity[] }
     return {
       entity_type: entityType,
-      entities: this.normalizeExtractedEntities(parsed.entities)
+      entities: this.normalizeExtractedEntities(parsed.entities),
+      usage: null
     }
   }
 

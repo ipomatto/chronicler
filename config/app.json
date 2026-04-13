@@ -8,5 +8,6 @@
   },
   "ui": {
     "language": "it"
-  }
+  },
+  "fingerprintThreshold": 10
 }

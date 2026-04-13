@@ -4,7 +4,8 @@ import path from 'node:path'
 import { StorageService } from '../services/storage'
 import { MatcherService } from '../services/matcher'
 import { LLMService } from '../services/llm'
-import type { EntityType, EntityFile, KnownEntity, Provider, LLMConfig } from '../../src/types/entities'
+import { SessionFingerprintService } from '../services/sessionFingerprint'
+import type { EntityType, EntityFile, KnownEntity, Provider, LLMConfig, AppConfig } from '../../src/types/entities'
 
 interface HandlerContext {
   dataPath: string
@@ -81,6 +82,23 @@ export function registerHandlers(ctx: HandlerContext): void {
 
   // Ensure index.md exists on startup; rebuild silently if missing
   fs.access(path.join(ctx.dataPath, 'index.md')).catch(() => { void storage.rebuildIndex() })
+
+  // ---------------------------------------------------------------------------
+  // Session fingerprint handlers
+  // ---------------------------------------------------------------------------
+
+  const fingerprint = new SessionFingerprintService(ctx.dataPath)
+
+  ipcMain.handle('session:checkFingerprint', async (_e, recapText: string) => {
+    const raw = await fs.readFile(path.join(ctx.configBasePath, 'app.json'), 'utf-8')
+    const appConfig = JSON.parse(raw) as AppConfig
+    const threshold = appConfig.fingerprintThreshold ?? 10
+    return fingerprint.checkFingerprint(recapText, threshold)
+  })
+
+  ipcMain.handle('session:recordFingerprint', async (_e, sessione: string, recapText: string) => {
+    return fingerprint.recordFingerprint(sessione, recapText)
+  })
 
   // ---------------------------------------------------------------------------
   // LLM handlers

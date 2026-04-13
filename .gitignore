@@ -1,5 +1,6 @@
 # ── Generated entity files (runtime output — not source) ─────────────────────
 data/**/*.md
+data/session-fingerprints.json
 
 
 

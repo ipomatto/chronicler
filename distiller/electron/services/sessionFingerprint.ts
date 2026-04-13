@@ -155,6 +155,13 @@ export class SessionFingerprintService {
     await this.saveArchive(archive)
   }
 
+  /**
+   * Load the fingerprint archive from disk.
+   * The file is created lazily on the first successful extraction
+   * (via recordFingerprint → saveArchive). Before that, reads will
+   * fail with ENOENT and we return an empty array — meaning the very
+   * first extraction always passes the duplicate check.
+   */
   private async loadArchive(): Promise<SessionFingerprint[]> {
     try {
       const raw = await fs.readFile(this.archivePath, 'utf-8')

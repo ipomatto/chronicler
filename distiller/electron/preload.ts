@@ -20,6 +20,11 @@ const bridge: ChroniclerBridge = {
   rebuildIndex: () => ipcRenderer.invoke('storage:rebuildIndex'),
   indexExists: () => ipcRenderer.invoke('storage:indexExists'),
 
+  // Session fingerprint
+  checkFingerprint: (recapText) => ipcRenderer.invoke('session:checkFingerprint', recapText),
+  recordFingerprint: (sessione, recapText) =>
+    ipcRenderer.invoke('session:recordFingerprint', sessione, recapText),
+
   // LLM
   extractEntities: (provider, model, entityType, recapText, knownEntities) =>
     ipcRenderer.invoke('llm:extractEntities', provider, model, entityType, recapText, knownEntities),

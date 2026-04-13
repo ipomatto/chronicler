@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import type { ExtractionResult, IndexStats, LLMConfig, Provider } from '../types/entities'
+import type { ExtractionResult, FingerprintMatch, IndexStats, LLMConfig, Provider } from '../types/entities'
 import { useExtraction } from '../hooks/useExtraction'
 
 interface Props {
@@ -17,6 +17,8 @@ export default function SessionInput({ onComplete }: Props) {
   const [indexStatus, setIndexStatus] = useState<IndexStatus>('checking')
   const [indexStats, setIndexStats] = useState<IndexStats | null>(null)
   const [indexRebuilt, setIndexRebuilt] = useState(false)
+
+  const [fingerprintWarning, setFingerprintWarning] = useState<FingerprintMatch | null>(null)
 
   const { extractAll, progress, startTimes, counts, isExtracting, error } = useExtraction()
   const [, setTick] = useState(0)
@@ -57,9 +59,25 @@ export default function SessionInput({ onComplete }: Props) {
 
   async function handleExtract() {
     if (!recapText.trim()) return
+
+    // Check for duplicate session via SimHash fingerprint
+    const match = await window.chronicler.checkFingerprint(recapText)
+    if (match) {
+      setFingerprintWarning(match)
+      return
+    }
+
+    await runExtraction()
+  }
+
+  async function runExtraction() {
+    setFingerprintWarning(null)
     const sessione = crypto.randomUUID()
     const results = await extractAll(recapText, provider, model)
-    if (results) onComplete(results, provider, model, sessione)
+    if (results) {
+      await window.chronicler.recordFingerprint(sessione, recapText)
+      onComplete(results, provider, model, sessione)
+    }
   }
 
   const models = llmConfig?.providers[provider]?.models ?? []
@@ -128,6 +146,36 @@ export default function SessionInput({ onComplete }: Props) {
 
       {error && (
         <div style={{ marginBottom: 16, color: '#f87171' }}>{error}</div>
+      )}
+
+      {/* Fingerprint duplicate warning */}
+      {fingerprintWarning && (
+        <div style={{
+          marginBottom: 16,
+          padding: 12,
+          background: 'rgba(251, 191, 36, 0.1)',
+          border: '1px solid #fbbf24',
+          borderRadius: 'var(--radius)',
+          fontSize: 13
+        }}>
+          <div style={{ fontWeight: 600, marginBottom: 6, color: '#f59e0b' }}>
+            Sessione simile rilevata
+          </div>
+          <div style={{ color: 'var(--text-muted)', marginBottom: 4 }}>
+            Data: {fingerprintWarning.fingerprint.date} — Distanza: {fingerprintWarning.distance} bit
+          </div>
+          <div style={{ color: 'var(--text-muted)', marginBottom: 8, fontStyle: 'italic' }}>
+            &ldquo;{fingerprintWarning.fingerprint.preview}&rdquo;
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setFingerprintWarning(null)} style={{ fontSize: 12 }}>
+              Annulla
+            </button>
+            <button className="primary" onClick={runExtraction} style={{ fontSize: 12 }}>
+              Procedi comunque
+            </button>
+          </div>
+        </div>
       )}
 
       <button

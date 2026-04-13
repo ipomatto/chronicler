@@ -166,6 +166,23 @@ export interface AppConfig {
   ui: {
     language: string
   }
+  fingerprintThreshold?: number
+}
+
+// ---------------------------------------------------------------------------
+// Session fingerprint (duplicate detection)
+// ---------------------------------------------------------------------------
+
+export interface SessionFingerprint {
+  sessione: string
+  date: string
+  simhash: string
+  preview: string
+}
+
+export interface FingerprintMatch {
+  fingerprint: SessionFingerprint
+  distance: number
 }
 
 // ---------------------------------------------------------------------------
@@ -209,6 +226,9 @@ export interface ChroniclerBridge {
   getEntityCounts: () => Promise<IndexStats>
   rebuildIndex: () => Promise<IndexStats>
   indexExists: () => Promise<boolean>
+  // Session fingerprint
+  checkFingerprint: (recapText: string) => Promise<FingerprintMatch | null>
+  recordFingerprint: (sessione: string, recapText: string) => Promise<void>
   // LLM
   extractEntities: (
     provider: Provider,

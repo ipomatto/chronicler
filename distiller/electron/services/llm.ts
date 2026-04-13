@@ -200,7 +200,7 @@ export class LLMService {
     recapText: string,
     knownEntities: KnownEntity[]
   ): Promise<ExtractionResult> {
-    console.log(`[LLM] ${ts()} → extractEntities  ${this.config.provider}/${this.config.model}  ${entityType}  recap: ${recapText.length} chars  known: ${knownEntities.length}`)
+    console.log(`[LLM] ${ts()} -> extractEntities  ${this.config.provider}/${this.config.model}  ${entityType}  recap: ${recapText.length} chars  known: ${knownEntities.length}`)
     try {
       const prompt = await this.loadPrompt(entityType)
       const filledPrompt = this.substituteVariables(prompt.body, {
@@ -215,10 +215,10 @@ export class LLMService {
           ? await this.callOllama(entityType, filledPrompt)
           : await this.callOpenAI(entityType, prompt.data.function_name as string, filledPrompt)
 
-      console.log(`[LLM] ${ts()} ✓ extractEntities  ${entityType}  entities: ${result.entities.length}`)
+      console.log(`[LLM] ${ts()} OK extractEntities  ${entityType}  entities: ${result.entities.length}`)
       return result
     } catch (err) {
-      console.error(`[LLM] ${ts()} ✗ extractEntities failed  ${entityType}`, err)
+      console.error(`[LLM] ${ts()} ERR extractEntities failed  ${entityType}`, err)
       throw err
     }
   }
@@ -266,7 +266,7 @@ export class LLMService {
 
   private async callAnthropic(entityType: EntityType, filledPrompt: string): Promise<ExtractionResult> {
     const tool = this.buildAnthropicTool(entityType)
-    console.log(`[LLM] ${ts()} → Anthropic  model: ${this.config.model}  type: ${entityType}`)
+    console.log(`[LLM] ${ts()} -> Anthropic  model: ${this.config.model}  type: ${entityType}`)
     try {
       const response = await this.anthropicClient!.messages.create({
         model: this.config.model,
@@ -279,7 +279,7 @@ export class LLMService {
       console.log(`[LLM] ${ts()} ← Anthropic  type: ${entityType}  in: ${response.usage.input_tokens}  out: ${response.usage.output_tokens}  stop: ${response.stop_reason}`)
       return this.parseAnthropicResponse(response, entityType)
     } catch (err) {
-      console.error(`[LLM] ${ts()} ✗ Anthropic error  type: ${entityType}`, err)
+      console.error(`[LLM] ${ts()} ERR Anthropic error  type: ${entityType}`, err)
       throw err
     }
   }
@@ -291,7 +291,7 @@ export class LLMService {
   ): Promise<ExtractionResult> {
     const fn = this.buildOpenAIFunction(entityType, functionName)
     const providerLabel = this.config.provider === 'ollama' ? 'Ollama' : 'OpenAI'
-    console.log(`[LLM] ${ts()} → ${providerLabel}  model: ${this.config.model}  type: ${entityType}`)
+    console.log(`[LLM] ${ts()} -> ${providerLabel}  model: ${this.config.model}  type: ${entityType}`)
     try {
       const response = await this.openaiClient!.chat.completions.create({
         model: this.config.model,
@@ -303,7 +303,7 @@ export class LLMService {
       console.log(`[LLM] ${ts()} ← ${providerLabel}  type: ${entityType}  in: ${response.usage?.prompt_tokens ?? '?'}  out: ${response.usage?.completion_tokens ?? '?'}`)
       return this.parseOpenAIResponse(response, entityType)
     } catch (err) {
-      console.error(`[LLM] ${ts()} ✗ ${providerLabel} error  type: ${entityType}`, err)
+      console.error(`[LLM] ${ts()} ERR ${providerLabel} error  type: ${entityType}`, err)
       throw err
     }
   }

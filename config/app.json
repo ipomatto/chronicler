@@ -7,7 +7,8 @@
     "maxCandidates": 5
   },
   "ui": {
-    "language": "it"
+    "language": "it",
+    "devtools": false
   },
   "fingerprintThreshold": 10
 }

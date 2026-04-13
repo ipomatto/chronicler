@@ -56,7 +56,7 @@ export class StorageService {
       const raw = await fs.readFile(filePath, 'utf-8')
       return parseMarkdown(raw)
     } catch (err) {
-      console.error(`[STORAGE] ${ts()} ✗ getEntity failed  ${filePath}`, err)
+      console.error(`[STORAGE] ${ts()} ERR getEntity failed  ${filePath}`, err)
       throw err
     }
   }
@@ -92,12 +92,12 @@ export class StorageService {
     await fs.mkdir(dir, { recursive: true })
     const filePath = this.filePath(entityType, slug)
     const raw = serializeMarkdown(content)
-    console.log(`[STORAGE] ${ts()} → WRITE (create)  ${filePath}`)
+    console.log(`[STORAGE] ${ts()} -> WRITE (create)  ${filePath}`)
     try {
       await fs.writeFile(filePath, raw, 'utf-8')
-      console.log(`[STORAGE] ${ts()} ✓ created  ${filePath}`)
+      console.log(`[STORAGE] ${ts()} OK created  ${filePath}`)
     } catch (err) {
-      console.error(`[STORAGE] ${ts()} ✗ createEntity failed  ${filePath}`, err)
+      console.error(`[STORAGE] ${ts()} ERR createEntity failed  ${filePath}`, err)
       throw err
     }
     void this.rebuildIndex()
@@ -108,12 +108,12 @@ export class StorageService {
     // Verify file exists before overwriting
     await fs.access(filePath)
     const raw = serializeMarkdown(content)
-    console.log(`[STORAGE] ${ts()} → WRITE (update)  ${filePath}`)
+    console.log(`[STORAGE] ${ts()} -> WRITE (update)  ${filePath}`)
     try {
       await fs.writeFile(filePath, raw, 'utf-8')
-      console.log(`[STORAGE] ${ts()} ✓ updated  ${filePath}`)
+      console.log(`[STORAGE] ${ts()} OK updated  ${filePath}`)
     } catch (err) {
-      console.error(`[STORAGE] ${ts()} ✗ updateEntity failed  ${filePath}`, err)
+      console.error(`[STORAGE] ${ts()} ERR updateEntity failed  ${filePath}`, err)
       throw err
     }
     void this.rebuildIndex()
@@ -233,13 +233,13 @@ export class StorageService {
     const total = Object.values(counts).reduce((s, n) => s + n, 0)
 
     const indexPath = path.join(this.dataPath, 'index.md')
-    console.log(`[STORAGE] ${ts()} → WRITE (index)  ${indexPath}`)
+    console.log(`[STORAGE] ${ts()} -> WRITE (index)  ${indexPath}`)
     try {
       await fs.mkdir(this.dataPath, { recursive: true })
       await fs.writeFile(indexPath, lines.join('\n'), 'utf-8')
-      console.log(`[STORAGE] ${ts()} ✓ index rebuilt  chars:${counts.characters} locs:${counts.locations} fac:${counts.factions} ev:${counts.events} tot:${total}`)
+      console.log(`[STORAGE] ${ts()} OK index rebuilt  chars:${counts.characters} locs:${counts.locations} fac:${counts.factions} ev:${counts.events} tot:${total}`)
     } catch (err) {
-      console.error(`[STORAGE] ${ts()} ✗ rebuildIndex failed  ${indexPath}`, err)
+      console.error(`[STORAGE] ${ts()} ERR rebuildIndex failed  ${indexPath}`, err)
       // index is a convenience feature — don't rethrow
     }
 

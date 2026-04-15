@@ -4,10 +4,11 @@
 
 Chronicler is a system for tracking and organizing narrative content from multiple D&D campaign sessions in a shared fantasy world. It ingests unstructured session recaps, extracts structured entities (characters, locations, factions, events) via LLM, and maintains a persistent knowledge base as Obsidian-compatible Markdown files.
 
-The system is composed of three modules:
+The system is composed of four modules:
 
 - **Distiller** (in scope): Electron + React app that processes session text via LLM, extracts entities, and manages the knowledge base
 - **Storage** (in scope): Filesystem-based structured archive of `.md` files with YAML frontmatter and `[[wiki-links]]`
+- **World Seeder** (in scope): Python CLI tool that synchronizes the local entity database to World Anvil via the Boromir API
 - **Viewer** (TBD): HTML-based visualization of the knowledge base - deferred to a future phase
 
 ---
@@ -61,6 +62,20 @@ chronicler/
 │   ├── electron-builder.json
 │   ├── vite.config.ts
 │   └── tsconfig.json
+├── world-seeder/                  # Python CLI - sync entities to World Anvil
+│   ├── world_seeder/
+│   │   ├── __init__.py
+│   │   ├── cli.py                 # Entry point (Click)
+│   │   ├── db_reader.py           # Read entities from data/ (.md files)
+│   │   ├── wa_client.py           # Boromir API wrapper (GET, POST, PATCH)
+│   │   ├── mapper.py              # Frontmatter+body → WA payload JSON
+│   │   ├── bbcode.py              # Markdown → BBCode conversion
+│   │   ├── sync_engine.py         # Two-pass orchestration, retry, errors
+│   │   └── mapping_store.py       # wa_sync SQLite table persistence
+│   ├── tests/
+│   ├── .env.example
+│   ├── requirements.txt
+│   └── README.md
 ├── viewer/                        # TBD - placeholder for future viewer app
 │   └── README.md
 ├── storage/                       # Shared storage configuration and schemas
@@ -825,6 +840,195 @@ None of these require rebuilding the app to change. The app reads them at startu
 
 ---
 
+## Module 3: World Seeder
+
+### Overview
+
+World Seeder is a Python CLI tool that synchronizes the local entity knowledge base (Markdown files in `data/`) to **World Anvil** via the Boromir API. The local database is the source of truth; World Anvil serves as the publication and visualization platform.
+
+### Architecture
+
+The system uses a **two-pass** approach to handle circular dependencies between entities:
+
+1. **Pass 1**: Create all entities on WA without cross-entity links. Collect the UUIDs assigned by WA.
+2. **Pass 2**: PATCH every entity to add resolved references via the mapping table.
+
+**Creation order** (to minimize unresolved dependencies):
+
+| Order | Chronicler Type | WA entityClass   | Dependencies      |
+|-------|-----------------|------------------|--------------------|
+| 1     | locations       | Location         | None               |
+| 2     | factions        | Organization     | Locations          |
+| 3     | characters      | Person           | Locations, Factions|
+| 4     | events          | HistoricalEvent  | Locations, Characters|
+
+### Components
+
+| Component        | Responsibility                                              |
+|------------------|-------------------------------------------------------------|
+| `cli.py`         | Click entry point: `seed`, `sync`, `status`, `reset`, `discover`, `verify` |
+| `db_reader.py`   | Read `.md` entities from `data/`, parse YAML frontmatter + body |
+| `wa_client.py`   | Boromir API wrapper (GET, POST, PATCH, DELETE) with retry   |
+| `mapper.py`      | Convert Chronicler entity to WA article JSON payload        |
+| `bbcode.py`      | Markdown to BBCode conversion (headers, bold, lists, links) |
+| `sync_engine.py` | Two-pass orchestration, error handling, rate limiting        |
+| `mapping_store.py`| SQLite persistence for the `wa_sync` mapping table          |
+
+### API Authentication
+
+Every request requires two headers:
+
+- `x-application-key`: Application key (requires WA Grandmaster plan)
+- `x-auth-token`: User auth token (requires WA Master+ plan)
+
+Keys are stored in a `.env` file (excluded from VCS) and loaded via `python-dotenv`.
+
+### Entity Mapping
+
+#### Character to Person
+
+| Chronicler field       | WA field              | Notes                        |
+|------------------------|-----------------------|------------------------------|
+| `name`                 | `title`               | Also split into firstname/lastname |
+| `aliases[0]`           | `nickname`            |                              |
+| `frontmatter.race`     | `species`             | UUID link if species exists  |
+| `frontmatter.status`   | `deathDate`           | null if alive                |
+| `body ## Description`  | `content` (BBCode)    | Main article body            |
+| `body ## Background`   | `history` (BBCode)    |                              |
+| `body ## Notable Items`| `personalPossessions` (BBCode) |                       |
+| wiki-links to locations| `currentLocation`     | UUID via mapping table       |
+
+#### Location to Location
+
+| Chronicler field           | WA field           | Notes                  |
+|----------------------------|--------------------|------------------------|
+| `name`                     | `title`            |                        |
+| `category`                 | `locationType`     | city, dungeon, etc.    |
+| `parent_location`          | `parentLocation`   | UUID via mapping table |
+| `body ## Description`      | `content` (BBCode) |                        |
+| `body ## History`          | `history` (BBCode) |                        |
+| `body ## Notable Features` | `pointsOfInterest` (BBCode) |               |
+
+#### Faction to Organization
+
+| Chronicler field          | WA field          | Notes                  |
+|---------------------------|-------------------|------------------------|
+| `name`                    | `title`           |                        |
+| `base_of_operations`      | `headquarters`    | UUID via mapping table |
+| `body ## Description`     | `content` (BBCode)|                        |
+| `body ## Known Members`   | `members` (BBCode)|                        |
+| `body ## Goals`           | `goals` (BBCode)  |                        |
+
+#### Event to HistoricalEvent
+
+| Chronicler field          | WA field          | Notes                  |
+|---------------------------|-------------------|------------------------|
+| `name`                    | `title`           |                        |
+| `frontmatter.location`   | `location`        | UUID via mapping table |
+| `frontmatter.date_in_world`| `startDate`     |                        |
+| `body ## Summary`         | `content` (BBCode)|                        |
+| `body ## Participants`    | `participants` (BBCode) |                  |
+| `body ## Consequences`    | `result` (BBCode) |                        |
+
+### Mapping Table
+
+Stored in a local SQLite database (`wa_sync.db`):
+
+```sql
+CREATE TABLE wa_sync (
+    db_id        TEXT    PRIMARY KEY,   -- entity slug
+    entity_type  TEXT    NOT NULL,      -- 'characters' | 'locations' | 'factions' | 'events'
+    wa_uuid      TEXT    UNIQUE,        -- UUID assigned by World Anvil
+    wa_url       TEXT,                  -- article URL on WA
+    synced_at    TIMESTAMP,            -- last successful sync
+    dirty        BOOLEAN DEFAULT FALSE, -- TRUE = needs re-sync
+    error        TEXT                   -- last error message
+);
+```
+
+**Record lifecycle**:
+
+| State         | dirty | wa_uuid | Description                        |
+|---------------|-------|---------|-------------------------------------|
+| New           | TRUE  | NULL    | Entity in DB, not yet on WA        |
+| Synced        | FALSE | present | Aligned between DB and WA          |
+| Modified      | TRUE  | present | DB updated, PATCH pending          |
+| Error         | TRUE  | any     | Last attempt failed, retry pending |
+
+### Conversions
+
+**Markdown to BBCode**: The `bbcode.py` module handles conversion of Markdown body content to World Anvil's BBCode format:
+
+- `## Header` to `[h2]Header[/h2]`
+- `**bold**` to `[b]bold[/b]`
+- `*italic*` to `[i]italic[/i]`
+- `- list item` to `[ul][li]list item[/li][/ul]`
+- `[[Entity Name]]` to `[article:UUID]` (resolved via mapping table)
+
+### CLI Commands
+
+| Command                        | Description                                     |
+|--------------------------------|-------------------------------------------------|
+| `world-seeder seed`            | Full initial sync (two-pass)                    |
+| `world-seeder sync`            | Incremental sync (dirty entities only)          |
+| `world-seeder status`          | Report: synced, pending, errored entity counts  |
+| `world-seeder reset [--type T]`| Mark all (or one type) as dirty for re-sync     |
+| `world-seeder discover <uuid>` | GET granularity=2 on a WA article, print fields |
+| `world-seeder verify`          | Compare local DB vs WA and report divergences   |
+
+### Configuration
+
+Environment variables (`.env`):
+
+```
+WA_APPLICATION_KEY=xxx
+WA_AUTH_TOKEN=yyy
+WA_WORLD_ID=uuid-del-mondo
+SEEDER_DB_URL=sqlite:///wa_sync.db
+WA_RATE_LIMIT_DELAY=0.5
+WA_DRY_RUN=false
+```
+
+The tool also reads `config/app.json` to determine the `storage.dataPath` for entity file locations.
+
+### Error Handling
+
+| Error Type           | Behavior                                          |
+|----------------------|---------------------------------------------------|
+| 429 Rate Limit       | Exponential backoff with jitter, max 5 retries    |
+| 403 Cloudflare block | Retry with User-Agent + 30s delay                 |
+| 404 Not Found        | Reset wa_uuid, recreate on next run               |
+| 5xx Server Error     | Retry with backoff, max 3 attempts, then skip     |
+| Network error        | Immediate retry 1x, then skip with log            |
+| Mapping error        | Critical log, skip entity, continue with others   |
+
+### Tech Stack
+
+| Component   | Choice          | Rationale                           |
+|-------------|-----------------|-------------------------------------|
+| Language    | Python 3.11+    | Rich ecosystem, pywaclient available|
+| HTTP client | httpx (async)   | Native async/await and retry        |
+| WA API      | pywaclient      | Boromir wrapper with intellisense   |
+| DB          | SQLite          | Zero-config, local-only             |
+| ORM         | SQLAlchemy      | DB abstraction                      |
+| Config      | python-dotenv   | No keys in source code              |
+| CLI         | Click           | Intuitive commands                  |
+| Logging     | loguru          | Structured logging with file rotation|
+| Test        | pytest + pytest-httpx | API call mocking              |
+
+### Roadmap
+
+| Phase | Milestone       | Content                                              |
+|-------|-----------------|------------------------------------------------------|
+| v0.1  | Bootstrap       | Repo setup, CLI base, wa_client, mapping table       |
+| v0.2  | Seed Location   | Full mapping + sync for Locations                    |
+| v0.3  | Seed Character  | Mapping + sync for Characters with Location links    |
+| v0.4  | Seed Event      | Mapping + sync for Events with Location + Character links |
+| v0.5  | Incremental     | Dirty flag, retry logic, error reporting             |
+| v1.0  | Release         | Full CLI, test coverage, README, .env.example        |
+
+---
+
 ## Out of Scope (Future)
 
 - **Viewer module**: HTML visualization of the knowledge base (Obsidian serves as interim viewer)
@@ -835,3 +1039,4 @@ None of these require rebuilding the app to change. The app reads them at startu
 - **World map integration**: linking locations to map coordinates
 - **Automated session recording**: voice-to-text pipeline
 - **Session tracking**: tracking play dates, DMs, players, group metadata
+- **Bidirectional WA sync**: importing from World Anvil back to local DB (WA is publish-only)

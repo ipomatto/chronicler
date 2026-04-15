@@ -4,10 +4,11 @@
 
 Chronicler is a system for tracking and organizing narrative content from multiple D&D campaign sessions in a shared fantasy world. It ingests unstructured session recaps, extracts structured entities (characters, locations, factions, events) via LLM, and maintains a persistent knowledge base as Obsidian-compatible Markdown files.
 
-The system is composed of three modules:
+The system is composed of four modules:
 
 - **Distiller** (in scope): Electron + React app that processes session text via LLM, extracts entities, and manages the knowledge base
 - **Storage** (in scope): Filesystem-based structured archive of `.md` files with YAML frontmatter and `[[wiki-links]]`
+- **World Seeder** (in scope): Electron + React app that synchronizes the local entity database to World Anvil via the Boromir API
 - **Viewer** (TBD): HTML-based visualization of the knowledge base - deferred to a future phase
 
 ---
@@ -61,6 +62,30 @@ chronicler/
 │   ├── electron-builder.json
 │   ├── vite.config.ts
 │   └── tsconfig.json
+├── world-seeder/                  # Electron + React - sync entities to World Anvil
+│   ├── electron/
+│   │   ├── main.ts                # App entry, window management
+│   │   ├── preload.ts             # Context bridge for renderer
+│   │   ├── services/
+│   │   │   ├── waClient.ts        # Boromir API wrapper (GET, POST, PATCH)
+│   │   │   ├── dbReader.ts        # Read entities from data/ (.md files)
+│   │   │   ├── mapper.ts          # Frontmatter+body → WA payload JSON
+│   │   │   ├── bbcode.ts          # Markdown → BBCode conversion
+│   │   │   ├── syncEngine.ts      # Two-pass orchestration, retry, errors
+│   │   │   └── mappingStore.ts    # wa_sync SQLite table persistence
+│   │   └── ipc/
+│   │       └── handlers.ts        # IPC handlers exposed to renderer
+│   ├── src/
+│   │   ├── App.tsx
+│   │   ├── components/
+│   │   │   ├── SyncDashboard.tsx   # Main view: status, actions, log
+│   │   │   ├── ConfigPanel.tsx     # WA API keys and settings
+│   │   │   └── SyncLog.tsx         # Live sync log with error details
+│   │   └── types/
+│   │       └── seeder.ts           # TypeScript types
+│   ├── package.json
+│   ├── electron-builder.json
+│   └── electron.vite.config.ts
 ├── viewer/                        # TBD - placeholder for future viewer app
 │   └── README.md
 ├── storage/                       # Shared storage configuration and schemas
@@ -825,6 +850,199 @@ None of these require rebuilding the app to change. The app reads them at startu
 
 ---
 
+## Module 3: World Seeder
+
+### Overview
+
+World Seeder is an Electron + React desktop app that synchronizes the local entity knowledge base (Markdown files in `data/`) to **World Anvil** via the Boromir API. It shares the same tech stack and design system as the Distiller for a consistent user experience. The local database is the source of truth; World Anvil serves as the publication and visualization platform.
+
+### Architecture
+
+The system uses a **two-pass** approach to handle circular dependencies between entities:
+
+1. **Pass 1**: Create all entities on WA without cross-entity links. Collect the UUIDs assigned by WA.
+2. **Pass 2**: PATCH every entity to add resolved references via the mapping table.
+
+**Creation order** (to minimize unresolved dependencies):
+
+| Order | Chronicler Type | WA entityClass   | Dependencies      |
+|-------|-----------------|------------------|--------------------|
+| 1     | locations       | Location         | None               |
+| 2     | factions        | Organization     | Locations          |
+| 3     | characters      | Person           | Locations, Factions|
+| 4     | events          | HistoricalEvent  | Locations, Characters|
+
+### Components
+
+**Electron main process** (`world-seeder/electron/services/`):
+
+| Component          | Responsibility                                              |
+|--------------------|-------------------------------------------------------------|
+| `waClient.ts`      | Boromir API wrapper (GET, POST, PATCH, DELETE) with retry   |
+| `dbReader.ts`      | Read `.md` entities from `data/`, parse YAML frontmatter + body |
+| `mapper.ts`        | Convert Chronicler entity to WA article JSON payload        |
+| `bbcode.ts`        | Markdown to BBCode conversion (headers, bold, lists, links) |
+| `syncEngine.ts`    | Two-pass orchestration, error handling, rate limiting        |
+| `mappingStore.ts`  | SQLite persistence for the `wa_sync` mapping table (via `better-sqlite3`) |
+
+**React renderer** (`world-seeder/src/components/`):
+
+| Component          | Responsibility                                              |
+|--------------------|-------------------------------------------------------------|
+| `SyncDashboard.tsx`| Main view: entity counts, sync status, action buttons       |
+| `ConfigPanel.tsx`  | WA API key input, World ID, rate limit settings             |
+| `SyncLog.tsx`      | Live scrolling log with color-coded entries and error details|
+
+### API Authentication
+
+Every request requires two headers:
+
+- `x-application-key`: Application key (requires WA Grandmaster plan)
+- `x-auth-token`: User auth token (requires WA Master+ plan)
+
+Keys are stored encrypted via Electron's `safeStorage` (same approach as Distiller's LLM API keys) and configured through the UI's ConfigPanel.
+
+### Entity Mapping
+
+#### Character to Person
+
+| Chronicler field       | WA field              | Notes                        |
+|------------------------|-----------------------|------------------------------|
+| `name`                 | `title`               | Also split into firstname/lastname |
+| `aliases[0]`           | `nickname`            |                              |
+| `frontmatter.race`     | `species`             | UUID link if species exists  |
+| `frontmatter.status`   | `deathDate`           | null if alive                |
+| `body ## Description`  | `content` (BBCode)    | Main article body            |
+| `body ## Background`   | `history` (BBCode)    |                              |
+| `body ## Notable Items`| `personalPossessions` (BBCode) |                       |
+| wiki-links to locations| `currentLocation`     | UUID via mapping table       |
+
+#### Location to Location
+
+| Chronicler field           | WA field           | Notes                  |
+|----------------------------|--------------------|------------------------|
+| `name`                     | `title`            |                        |
+| `category`                 | `locationType`     | city, dungeon, etc.    |
+| `parent_location`          | `parentLocation`   | UUID via mapping table |
+| `body ## Description`      | `content` (BBCode) |                        |
+| `body ## History`          | `history` (BBCode) |                        |
+| `body ## Notable Features` | `pointsOfInterest` (BBCode) |               |
+
+#### Faction to Organization
+
+| Chronicler field          | WA field          | Notes                  |
+|---------------------------|-------------------|------------------------|
+| `name`                    | `title`           |                        |
+| `base_of_operations`      | `headquarters`    | UUID via mapping table |
+| `body ## Description`     | `content` (BBCode)|                        |
+| `body ## Known Members`   | `members` (BBCode)|                        |
+| `body ## Goals`           | `goals` (BBCode)  |                        |
+
+#### Event to HistoricalEvent
+
+| Chronicler field          | WA field          | Notes                  |
+|---------------------------|-------------------|------------------------|
+| `name`                    | `title`           |                        |
+| `frontmatter.location`   | `location`        | UUID via mapping table |
+| `frontmatter.date_in_world`| `startDate`     |                        |
+| `body ## Summary`         | `content` (BBCode)|                        |
+| `body ## Participants`    | `participants` (BBCode) |                  |
+| `body ## Consequences`    | `result` (BBCode) |                        |
+
+### Mapping Table
+
+Stored in a local SQLite database (via `better-sqlite3`) at `data/wa-sync.db`:
+
+```sql
+CREATE TABLE wa_sync (
+    db_id        TEXT    PRIMARY KEY,   -- entity slug
+    entity_type  TEXT    NOT NULL,      -- 'characters' | 'locations' | 'factions' | 'events'
+    wa_uuid      TEXT    UNIQUE,        -- UUID assigned by World Anvil
+    wa_url       TEXT,                  -- article URL on WA
+    synced_at    TIMESTAMP,            -- last successful sync
+    dirty        BOOLEAN DEFAULT FALSE, -- TRUE = needs re-sync
+    error        TEXT                   -- last error message
+);
+```
+
+**Record lifecycle**:
+
+| State         | dirty | wa_uuid | Description                        |
+|---------------|-------|---------|-------------------------------------|
+| New           | TRUE  | NULL    | Entity in DB, not yet on WA        |
+| Synced        | FALSE | present | Aligned between DB and WA          |
+| Modified      | TRUE  | present | DB updated, PATCH pending          |
+| Error         | TRUE  | any     | Last attempt failed, retry pending |
+
+### Conversions
+
+**Markdown to BBCode**: The `bbcode.ts` module handles conversion of Markdown body content to World Anvil's BBCode format:
+
+- `## Header` to `[h2]Header[/h2]`
+- `**bold**` to `[b]bold[/b]`
+- `*italic*` to `[i]italic[/i]`
+- `- list item` to `[ul][li]list item[/li][/ul]`
+- `[[Entity Name]]` to `[article:UUID]` (resolved via mapping table)
+
+### User Interface
+
+#### SyncDashboard (main view)
+
+Shows at a glance:
+- Entity counts per type (synced / pending / error)
+- Last sync timestamp
+- Action buttons: **Seed** (full sync), **Sync** (incremental), **Reset**, **Verify**
+- Live progress during sync operations
+
+#### ConfigPanel
+
+- WA Application Key input (encrypted via `safeStorage`)
+- WA Auth Token input (encrypted via `safeStorage`)
+- World ID input
+- Rate limit delay slider (default 0.5s)
+- Dry-run toggle
+
+#### SyncLog
+
+- Scrollable log panel with live updates during sync
+- Color-coded entries: info (default), success (green), warning (amber), error (red)
+- Expandable error details with API response body
+- Filterable by log level
+
+### Configuration
+
+API keys are managed through the ConfigPanel UI and stored encrypted via Electron's `safeStorage` (same pattern as Distiller).
+
+The app reads `config/app.json` to determine `storage.dataPath` for entity file locations. WA-specific settings (World ID, rate limit) are stored in `config/world-seeder.json`.
+
+### Error Handling
+
+| Error Type           | Behavior                                          |
+|----------------------|---------------------------------------------------|
+| 429 Rate Limit       | Exponential backoff with jitter, max 5 retries    |
+| 403 Cloudflare block | Retry with User-Agent + 30s delay                 |
+| 404 Not Found        | Reset wa_uuid, recreate on next run               |
+| 5xx Server Error     | Retry with backoff, max 3 attempts, then skip     |
+| Network error        | Immediate retry 1x, then skip with log            |
+| Mapping error        | Critical log, skip entity, continue with others   |
+
+All errors are displayed in the SyncLog with full details.
+
+### Tech Stack
+
+| Component      | Choice            | Rationale                                 |
+|----------------|-------------------|-------------------------------------------|
+| Desktop shell  | Electron          | Same as Distiller, consistent UX          |
+| Frontend       | React + TypeScript| Same as Distiller                         |
+| Build          | electron-vite     | Same as Distiller                         |
+| HTTP client    | Node.js fetch     | Built-in, no extra dependency             |
+| SQLite         | better-sqlite3    | Synchronous, fast, native Node binding    |
+| Markdown parse | gray-matter       | Same as Distiller (shared dependency)     |
+| Encryption     | Electron safeStorage | Same as Distiller for API key storage  |
+| Test           | vitest            | Same as Distiller                         |
+
+---
+
 ## Out of Scope (Future)
 
 - **Viewer module**: HTML visualization of the knowledge base (Obsidian serves as interim viewer)
@@ -835,3 +1053,4 @@ None of these require rebuilding the app to change. The app reads them at startu
 - **World map integration**: linking locations to map coordinates
 - **Automated session recording**: voice-to-text pipeline
 - **Session tracking**: tracking play dates, DMs, players, group metadata
+- **Bidirectional WA sync**: importing from World Anvil back to local DB (WA is publish-only)

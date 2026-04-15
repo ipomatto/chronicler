@@ -8,7 +8,7 @@ The system is composed of four modules:
 
 - **Distiller** (in scope): Electron + React app that processes session text via LLM, extracts entities, and manages the knowledge base
 - **Storage** (in scope): Filesystem-based structured archive of `.md` files with YAML frontmatter and `[[wiki-links]]`
-- **World Seeder** (in scope): Python CLI tool that synchronizes the local entity database to World Anvil via the Boromir API
+- **World Seeder** (in scope): Electron + React app that synchronizes the local entity database to World Anvil via the Boromir API
 - **Viewer** (TBD): HTML-based visualization of the knowledge base - deferred to a future phase
 
 ---
@@ -62,20 +62,30 @@ chronicler/
 │   ├── electron-builder.json
 │   ├── vite.config.ts
 │   └── tsconfig.json
-├── world-seeder/                  # Python CLI - sync entities to World Anvil
-│   ├── world_seeder/
-│   │   ├── __init__.py
-│   │   ├── cli.py                 # Entry point (Click)
-│   │   ├── db_reader.py           # Read entities from data/ (.md files)
-│   │   ├── wa_client.py           # Boromir API wrapper (GET, POST, PATCH)
-│   │   ├── mapper.py              # Frontmatter+body → WA payload JSON
-│   │   ├── bbcode.py              # Markdown → BBCode conversion
-│   │   ├── sync_engine.py         # Two-pass orchestration, retry, errors
-│   │   └── mapping_store.py       # wa_sync SQLite table persistence
-│   ├── tests/
-│   ├── .env.example
-│   ├── requirements.txt
-│   └── README.md
+├── world-seeder/                  # Electron + React - sync entities to World Anvil
+│   ├── electron/
+│   │   ├── main.ts                # App entry, window management
+│   │   ├── preload.ts             # Context bridge for renderer
+│   │   ├── services/
+│   │   │   ├── waClient.ts        # Boromir API wrapper (GET, POST, PATCH)
+│   │   │   ├── dbReader.ts        # Read entities from data/ (.md files)
+│   │   │   ├── mapper.ts          # Frontmatter+body → WA payload JSON
+│   │   │   ├── bbcode.ts          # Markdown → BBCode conversion
+│   │   │   ├── syncEngine.ts      # Two-pass orchestration, retry, errors
+│   │   │   └── mappingStore.ts    # wa_sync SQLite table persistence
+│   │   └── ipc/
+│   │       └── handlers.ts        # IPC handlers exposed to renderer
+│   ├── src/
+│   │   ├── App.tsx
+│   │   ├── components/
+│   │   │   ├── SyncDashboard.tsx   # Main view: status, actions, log
+│   │   │   ├── ConfigPanel.tsx     # WA API keys and settings
+│   │   │   └── SyncLog.tsx         # Live sync log with error details
+│   │   └── types/
+│   │       └── seeder.ts           # TypeScript types
+│   ├── package.json
+│   ├── electron-builder.json
+│   └── electron.vite.config.ts
 ├── viewer/                        # TBD - placeholder for future viewer app
 │   └── README.md
 ├── storage/                       # Shared storage configuration and schemas
@@ -844,7 +854,7 @@ None of these require rebuilding the app to change. The app reads them at startu
 
 ### Overview
 
-World Seeder is a Python CLI tool that synchronizes the local entity knowledge base (Markdown files in `data/`) to **World Anvil** via the Boromir API. The local database is the source of truth; World Anvil serves as the publication and visualization platform.
+World Seeder is an Electron + React desktop app that synchronizes the local entity knowledge base (Markdown files in `data/`) to **World Anvil** via the Boromir API. It shares the same tech stack and design system as the Distiller for a consistent user experience. The local database is the source of truth; World Anvil serves as the publication and visualization platform.
 
 ### Architecture
 
@@ -864,15 +874,24 @@ The system uses a **two-pass** approach to handle circular dependencies between 
 
 ### Components
 
-| Component        | Responsibility                                              |
-|------------------|-------------------------------------------------------------|
-| `cli.py`         | Click entry point: `seed`, `sync`, `status`, `reset`, `discover`, `verify` |
-| `db_reader.py`   | Read `.md` entities from `data/`, parse YAML frontmatter + body |
-| `wa_client.py`   | Boromir API wrapper (GET, POST, PATCH, DELETE) with retry   |
-| `mapper.py`      | Convert Chronicler entity to WA article JSON payload        |
-| `bbcode.py`      | Markdown to BBCode conversion (headers, bold, lists, links) |
-| `sync_engine.py` | Two-pass orchestration, error handling, rate limiting        |
-| `mapping_store.py`| SQLite persistence for the `wa_sync` mapping table          |
+**Electron main process** (`world-seeder/electron/services/`):
+
+| Component          | Responsibility                                              |
+|--------------------|-------------------------------------------------------------|
+| `waClient.ts`      | Boromir API wrapper (GET, POST, PATCH, DELETE) with retry   |
+| `dbReader.ts`      | Read `.md` entities from `data/`, parse YAML frontmatter + body |
+| `mapper.ts`        | Convert Chronicler entity to WA article JSON payload        |
+| `bbcode.ts`        | Markdown to BBCode conversion (headers, bold, lists, links) |
+| `syncEngine.ts`    | Two-pass orchestration, error handling, rate limiting        |
+| `mappingStore.ts`  | SQLite persistence for the `wa_sync` mapping table (via `better-sqlite3`) |
+
+**React renderer** (`world-seeder/src/components/`):
+
+| Component          | Responsibility                                              |
+|--------------------|-------------------------------------------------------------|
+| `SyncDashboard.tsx`| Main view: entity counts, sync status, action buttons       |
+| `ConfigPanel.tsx`  | WA API key input, World ID, rate limit settings             |
+| `SyncLog.tsx`      | Live scrolling log with color-coded entries and error details|
 
 ### API Authentication
 
@@ -881,7 +900,7 @@ Every request requires two headers:
 - `x-application-key`: Application key (requires WA Grandmaster plan)
 - `x-auth-token`: User auth token (requires WA Master+ plan)
 
-Keys are stored in a `.env` file (excluded from VCS) and loaded via `python-dotenv`.
+Keys are stored encrypted via Electron's `safeStorage` (same approach as Distiller's LLM API keys) and configured through the UI's ConfigPanel.
 
 ### Entity Mapping
 
@@ -932,7 +951,7 @@ Keys are stored in a `.env` file (excluded from VCS) and loaded via `python-dote
 
 ### Mapping Table
 
-Stored in a local SQLite database (`wa_sync.db`):
+Stored in a local SQLite database (via `better-sqlite3`) at `data/wa-sync.db`:
 
 ```sql
 CREATE TABLE wa_sync (
@@ -957,7 +976,7 @@ CREATE TABLE wa_sync (
 
 ### Conversions
 
-**Markdown to BBCode**: The `bbcode.py` module handles conversion of Markdown body content to World Anvil's BBCode format:
+**Markdown to BBCode**: The `bbcode.ts` module handles conversion of Markdown body content to World Anvil's BBCode format:
 
 - `## Header` to `[h2]Header[/h2]`
 - `**bold**` to `[b]bold[/b]`
@@ -965,31 +984,36 @@ CREATE TABLE wa_sync (
 - `- list item` to `[ul][li]list item[/li][/ul]`
 - `[[Entity Name]]` to `[article:UUID]` (resolved via mapping table)
 
-### CLI Commands
+### User Interface
 
-| Command                        | Description                                     |
-|--------------------------------|-------------------------------------------------|
-| `world-seeder seed`            | Full initial sync (two-pass)                    |
-| `world-seeder sync`            | Incremental sync (dirty entities only)          |
-| `world-seeder status`          | Report: synced, pending, errored entity counts  |
-| `world-seeder reset [--type T]`| Mark all (or one type) as dirty for re-sync     |
-| `world-seeder discover <uuid>` | GET granularity=2 on a WA article, print fields |
-| `world-seeder verify`          | Compare local DB vs WA and report divergences   |
+#### SyncDashboard (main view)
+
+Shows at a glance:
+- Entity counts per type (synced / pending / error)
+- Last sync timestamp
+- Action buttons: **Seed** (full sync), **Sync** (incremental), **Reset**, **Verify**
+- Live progress during sync operations
+
+#### ConfigPanel
+
+- WA Application Key input (encrypted via `safeStorage`)
+- WA Auth Token input (encrypted via `safeStorage`)
+- World ID input
+- Rate limit delay slider (default 0.5s)
+- Dry-run toggle
+
+#### SyncLog
+
+- Scrollable log panel with live updates during sync
+- Color-coded entries: info (default), success (green), warning (amber), error (red)
+- Expandable error details with API response body
+- Filterable by log level
 
 ### Configuration
 
-Environment variables (`.env`):
+API keys are managed through the ConfigPanel UI and stored encrypted via Electron's `safeStorage` (same pattern as Distiller).
 
-```
-WA_APPLICATION_KEY=xxx
-WA_AUTH_TOKEN=yyy
-WA_WORLD_ID=uuid-del-mondo
-SEEDER_DB_URL=sqlite:///wa_sync.db
-WA_RATE_LIMIT_DELAY=0.5
-WA_DRY_RUN=false
-```
-
-The tool also reads `config/app.json` to determine the `storage.dataPath` for entity file locations.
+The app reads `config/app.json` to determine `storage.dataPath` for entity file locations. WA-specific settings (World ID, rate limit) are stored in `config/world-seeder.json`.
 
 ### Error Handling
 
@@ -1002,19 +1026,20 @@ The tool also reads `config/app.json` to determine the `storage.dataPath` for en
 | Network error        | Immediate retry 1x, then skip with log            |
 | Mapping error        | Critical log, skip entity, continue with others   |
 
+All errors are displayed in the SyncLog with full details.
+
 ### Tech Stack
 
-| Component   | Choice          | Rationale                           |
-|-------------|-----------------|-------------------------------------|
-| Language    | Python 3.11+    | Rich ecosystem, pywaclient available|
-| HTTP client | httpx (async)   | Native async/await and retry        |
-| WA API      | pywaclient      | Boromir wrapper with intellisense   |
-| DB          | SQLite          | Zero-config, local-only             |
-| ORM         | SQLAlchemy      | DB abstraction                      |
-| Config      | python-dotenv   | No keys in source code              |
-| CLI         | Click           | Intuitive commands                  |
-| Logging     | loguru          | Structured logging with file rotation|
-| Test        | pytest + pytest-httpx | API call mocking              |
+| Component      | Choice            | Rationale                                 |
+|----------------|-------------------|-------------------------------------------|
+| Desktop shell  | Electron          | Same as Distiller, consistent UX          |
+| Frontend       | React + TypeScript| Same as Distiller                         |
+| Build          | electron-vite     | Same as Distiller                         |
+| HTTP client    | Node.js fetch     | Built-in, no extra dependency             |
+| SQLite         | better-sqlite3    | Synchronous, fast, native Node binding    |
+| Markdown parse | gray-matter       | Same as Distiller (shared dependency)     |
+| Encryption     | Electron safeStorage | Same as Distiller for API key storage  |
+| Test           | vitest            | Same as Distiller                         |
 
 ---
 

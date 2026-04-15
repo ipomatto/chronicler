@@ -1016,17 +1016,6 @@ The tool also reads `config/app.json` to determine the `storage.dataPath` for en
 | Logging     | loguru          | Structured logging with file rotation|
 | Test        | pytest + pytest-httpx | API call mocking              |
 
-### Roadmap
-
-| Phase | Milestone       | Content                                              |
-|-------|-----------------|------------------------------------------------------|
-| v0.1  | Bootstrap       | Repo setup, CLI base, wa_client, mapping table       |
-| v0.2  | Seed Location   | Full mapping + sync for Locations                    |
-| v0.3  | Seed Character  | Mapping + sync for Characters with Location links    |
-| v0.4  | Seed Event      | Mapping + sync for Events with Location + Character links |
-| v0.5  | Incremental     | Dirty flag, retry logic, error reporting             |
-| v1.0  | Release         | Full CLI, test coverage, README, .env.example        |
-
 ---
 
 ## Out of Scope (Future)

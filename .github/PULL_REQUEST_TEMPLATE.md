@@ -1,3 +1,13 @@
+## Target branch
+
+<!-- Barra la casella corrispondente al target giusto. Regole in CONTRIBUTING.md. -->
+
+- [ ] `devel` — lavoro short-lived senza label `feature/*`
+- [ ] `feature/viewer`
+- [ ] `feature/llama-integration`
+- [ ] `feature/world-seeder`
+- [ ] `main` — **solo** release PR dal maintainer
+
 ## Summary
 
 <!-- Cosa cambia questa PR, in 1-3 bullet. -->

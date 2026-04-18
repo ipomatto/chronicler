@@ -6,6 +6,7 @@
 - [ ] `feature/viewer`
 - [ ] `feature/llama-integration`
 - [ ] `feature/world-seeder`
+- [ ] `feature/distiller`
 - [ ] `main` — **solo** release PR dal maintainer
 
 ## Summary

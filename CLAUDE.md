@@ -4,11 +4,12 @@
 
 Chronicler is a system for tracking D&D campaign entities across multiple groups in a shared world. It uses LLM APIs (OpenAI/Anthropic/Ollama, configurable) to extract structured entities from unstructured session recaps, and stores them as Obsidian-compatible Markdown files.
 
-The project has three modules: **Distiller** (Electron + React app), **Storage** (filesystem `.md` files), and **Viewer** (TBD).
+The project has four modules: **Distiller** (Electron + React app for LLM entity extraction), **Storage** (filesystem `.md` files), **World Seeder** (Electron + React app for World Anvil sync via Boromir API), and **Viewer** (TBD).
 
 ## Key Architecture Decisions
 
-- **Two separate apps**: Distiller (Electron + React) and Viewer (TBD) under `distiller/` and `viewer/`
+- **Three separate apps**: Distiller, World Seeder, and Viewer (TBD) under `distiller/`, `world-seeder/`, and `viewer/` — all Electron + React, same stack
+- **World Seeder** syncs the local entity DB to World Anvil via a two-pass pipeline (POST without links, then PATCH with resolved UUIDs), with a SQLite mapping table (`data/wa-sync.db`). See [`world-seeder/SPEC.md`](./world-seeder/SPEC.md).
 - **Electron main process** handles: filesystem I/O on `data/` directory, LLM API calls, config management, entity matching
 - **React renderer** handles: UI, extraction review workflow, entity editing, disambiguation
 - **IPC bridge** connects renderer to main process services (storage, llm, matcher)

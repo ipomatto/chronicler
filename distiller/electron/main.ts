@@ -1,5 +1,6 @@
 import { app, BrowserWindow, shell, Menu } from 'electron'
 import fs from 'node:fs'
+import fsp from 'node:fs/promises'
 import path from 'node:path'
 import { registerHandlers } from './ipc/handlers'
 import type { AppConfig } from '../src/types/entities'
@@ -22,6 +23,32 @@ function resolveProjectPath(...segments: string[]): string {
   }
   // In dev: __dirname = out/main/, project root is 3 levels up
   return path.join(__dirname, '../../..', ...segments)
+}
+
+// Remove leftover .tmp files from crashed atomic writes in storage.ts.
+// These are safe to delete: the rename step either succeeded (target is the
+// final file) or failed (original file is intact) — the .tmp is never a
+// source of truth.
+async function cleanupOrphanTmp(root: string): Promise<void> {
+  let entries: import('node:fs').Dirent[]
+  try {
+    entries = await fsp.readdir(root, { withFileTypes: true })
+  } catch {
+    return // data dir doesn't exist yet
+  }
+  for (const entry of entries) {
+    const full = path.join(root, entry.name)
+    if (entry.isDirectory()) {
+      await cleanupOrphanTmp(full)
+    } else if (entry.isFile() && entry.name.endsWith('.tmp')) {
+      try {
+        await fsp.unlink(full)
+        console.log(`[MAIN] cleaned orphan tmp  ${full}`)
+      } catch (err) {
+        console.error(`[MAIN] failed to clean orphan tmp  ${full}`, err)
+      }
+    }
+  }
 }
 
 function loadDevToolsSetting(): boolean {
@@ -77,11 +104,14 @@ function createWindow(): BrowserWindow {
   return win
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   Menu.setApplicationMenu(null)
 
-  registerHandlers({
-    dataPath: resolveProjectPath('data'),
+  const dataPath = resolveProjectPath('data')
+  await cleanupOrphanTmp(dataPath)
+
+  await registerHandlers({
+    dataPath,
     promptsBasePath: resolveProjectPath('prompts'),
     configBasePath: resolveProjectPath('config'),
     keysFilePath: path.join(app.getPath('userData'), 'keys.bin')

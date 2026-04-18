@@ -214,7 +214,8 @@ export interface UnlinkedMatch {
   entityName: string
   entityType: EntityType
   entitySlug: string
-  count: number   // number of unlinked occurrences found in the body
+  count: number          // number of unlinked occurrences found in the body
+  matchedNames: string[] // names/aliases that actually matched in the body
 }
 
 // ---------------------------------------------------------------------------

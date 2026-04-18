@@ -281,14 +281,23 @@ export class StorageService {
         ].filter(Boolean)
 
         let count = 0
+        const matchedNames: string[] = []
         for (const name of namesToCheck) {
           const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
           const regex = new RegExp(escaped, 'gi')
-          count += countInNonLinkedSegments(body, regex)
+          const hits = countInNonLinkedSegments(body, regex)
+          if (hits > 0) matchedNames.push(name)
+          count += hits
         }
 
         if (count > 0) {
-          results.push({ entityName: entity.name, entityType, entitySlug: entity.slug, count })
+          results.push({
+            entityName: entity.name,
+            entityType,
+            entitySlug: entity.slug,
+            count,
+            matchedNames
+          })
         }
       }
     }

@@ -59,3 +59,21 @@ npm run build        # Build for production
 npm run lint         # Run ESLint
 npm run typecheck    # Run TypeScript type checking
 ```
+
+## Git Workflow (for AI contributors)
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for full rules. Core constraints when proposing changes:
+
+1. **Never commit or push directly to `main` or `devel`.** Both are protected by a ruleset that blocks direct pushes.
+2. **Start from `devel`.** Exception: if the user references an issue that has a `feature/<name>` label, branch from that feature branch instead.
+3. **Branch naming**:
+   - Short-lived work: `feat/<slug>`, `fix/<slug>`, `docs/<slug>`, `chore/<slug>`
+   - Inside a `feature/*` long-lived branch, prefix the slug with the feature name (e.g. `feat/viewer-toc`)
+4. **Long-lived feature branches** currently in use: `feature/viewer`, `feature/llama-integration`, `feature/world-seeder`. Do **not** create new `feature/*` branches without explicit user instruction.
+5. **PR target**:
+   - Issue labelled `feature/<name>` → PR targets `feature/<name>`
+   - Otherwise → PR targets `devel`
+   - **Never** open PRs toward `main`. Release PRs (`devel` → `main`) are maintainer-only.
+6. **Commit messages**: Conventional Commits style (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`). Not enforced by hooks but matches the repo history.
+7. **Do not bump `distiller/package.json` version** unless the user explicitly asks for a release. Version bumps are the maintainer's decision.
+8. **Do not create git tags** or push to `main`. The `release.yml` workflow handles tagging automatically on release PR merge.

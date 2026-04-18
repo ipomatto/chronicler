@@ -32,7 +32,10 @@ const bridge: ChroniclerBridge = {
   // Settings
   getApiKey: (provider) => ipcRenderer.invoke('settings:getApiKey', provider),
   setApiKey: (provider, key) => ipcRenderer.invoke('settings:setApiKey', provider, key),
-  getLLMConfig: () => ipcRenderer.invoke('settings:getLLMConfig')
+  getLLMConfig: () => ipcRenderer.invoke('settings:getLLMConfig'),
+
+  // Config
+  getConfigStatus: () => ipcRenderer.invoke('config:getStatus')
 }
 
 contextBridge.exposeInMainWorld('chronicler', bridge)

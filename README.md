@@ -66,14 +66,34 @@ See [SPEC.md](./SPEC.md) for the full project specification.
 
 ## Contributing
 
-Lavoriamo in [GitHub flow](https://docs.github.com/en/get-started/using-github/github-flow): `main` è sempre deployabile, ogni modifica vive su un branch dedicato e arriva in `main` via Pull Request con CI verde.
+Il repo usa un flusso a due branch:
 
-Convenzione di naming dei branch (in linea con lo storico):
+- **`devel`** (default) — branch di integrazione. Tutte le feature/fix atterrano qui via Pull Request con CI verde.
+- **`main`** — branch di release. Solo il maintainer apre una *release PR* da `devel` a `main`; il merge fa partire automaticamente build e pubblicazione.
+
+Convenzione di naming dei branch di lavoro (in linea con lo storico):
 
 - `feat/<slug>` — nuove funzionalità
 - `fix/<slug>` — bug fix
 - `docs/<slug>` — modifiche alla documentazione
 - `chore/<slug>` — manutenzione, build, CI
+
+## Release process
+
+Le release sono **Windows-only** e riguardano per ora solo il modulo `distiller`. Il maintainer sceglie manualmente il numero di versione secondo [semver](https://semver.org): `patch` per bugfix, `minor` per nuove feature backward-compatible, `major` per breaking change.
+
+Procedura:
+
+1. `git switch devel && git pull`
+2. Aprire `distiller/package.json` in un editor e modificare il campo `"version"` (es. `"0.1.0"` → `"0.2.0"`)
+3. `git commit -am "chore: release X.Y.Z"`
+4. `git push`
+5. Aprire una PR da `devel` a `main` e mergiarla (squash)
+6. Il workflow `release.yml` parte automaticamente: builda l'installer NSIS, crea il tag `vX.Y.Z` e pubblica una **Release draft** su GitHub con l'`.exe` allegato e le note auto-generate dalle PR
+7. Rivedere le note sulla Release draft e pubblicarla manualmente
+8. Risincronizzare `devel`: `git switch devel && git merge main && git push`
+
+Se dimentichi di bumpare la versione, `release.yml` abortisce senza creare duplicati (il tag esistente viene rilevato).
 
 ## License
 

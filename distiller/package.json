@@ -13,6 +13,25 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui"
   },
+  "build": {
+    "appId": "com.chronicler.distiller",
+    "productName": "Chronicler Distiller",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false
+    }
+  },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.36.3",
     "openai": "^4.76.0",

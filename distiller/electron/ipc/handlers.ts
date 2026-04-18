@@ -207,7 +207,26 @@ export async function registerHandlers(ctx: HandlerContext): Promise<void> {
         baseUrl,
         promptsBasePath: ctx.promptsBasePath
       })
-      return service.extractEntities(entityType, recapText, knownEntities)
+      const result = await service.extractEntities(entityType, recapText, knownEntities)
+
+      // Second-pass matching: the LLM often fails to match slightly-renamed
+      // existing entities and marks them NEW, which produces duplicates at
+      // save time. Run the deterministic matcher on every NEW entity and
+      // promote high-confidence hits to matched_slug or offer the user
+      // AMBIGUOUS candidates to disambiguate.
+      for (const entity of result.entities) {
+        if (entity.matched_slug || entity.possible_matches.length > 0) continue
+        const candidates = await matcher.findSimilarEntities(entity.name, entityType)
+        if (candidates.length === 0) continue
+        const top = candidates[0]
+        if (top.score >= 0.95) {
+          entity.matched_slug = top.slug
+        } else {
+          entity.possible_matches = candidates.map((c) => c.slug)
+        }
+      }
+
+      return result
     }
   )
 

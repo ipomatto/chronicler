@@ -175,6 +175,11 @@ export interface AppConfig {
   fingerprintThreshold?: number
 }
 
+export interface ConfigStatus {
+  appRegenerated: boolean
+  llmRegenerated: boolean
+}
+
 // ---------------------------------------------------------------------------
 // Session fingerprint (duplicate detection)
 // ---------------------------------------------------------------------------
@@ -247,6 +252,8 @@ export interface ChroniclerBridge {
   getApiKey: (provider: Provider) => Promise<string | null>
   setApiKey: (provider: Provider, key: string) => Promise<void>
   getLLMConfig: () => Promise<LLMConfig>
+  // Config
+  getConfigStatus: () => Promise<ConfigStatus>
 }
 
 declare global {

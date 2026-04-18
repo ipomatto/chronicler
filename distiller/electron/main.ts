@@ -110,7 +110,7 @@ app.whenReady().then(async () => {
   const dataPath = resolveProjectPath('data')
   await cleanupOrphanTmp(dataPath)
 
-  registerHandlers({
+  await registerHandlers({
     dataPath,
     promptsBasePath: resolveProjectPath('prompts'),
     configBasePath: resolveProjectPath('config'),

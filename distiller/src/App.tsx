@@ -4,6 +4,9 @@ import ExtractionReview from './components/ExtractionReview'
 import StorageBrowser from './components/StorageBrowser'
 import Settings from './components/Settings'
 import IndexTools from './components/IndexTools'
+import ErrorBoundary from './components/ErrorBoundary'
+import ErrorToast from './components/ErrorToast'
+import { ErrorProvider } from './contexts/ErrorContext'
 import type { ExtractionResult, Provider, ConfigStatus } from './types/entities'
 
 type Screen = 'input' | 'review' | 'browser' | 'tools' | 'settings'
@@ -16,6 +19,17 @@ interface ExtractionSession {
 }
 
 export default function App() {
+  return (
+    <ErrorBoundary>
+      <ErrorProvider>
+        <AppShell />
+        <ErrorToast />
+      </ErrorProvider>
+    </ErrorBoundary>
+  )
+}
+
+function AppShell() {
   const [screen, setScreen] = useState<Screen>('input')
   const [session, setSession] = useState<ExtractionSession | null>(null)
   const [configStatus, setConfigStatus] = useState<ConfigStatus | null>(null)

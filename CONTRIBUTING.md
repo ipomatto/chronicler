@@ -10,6 +10,7 @@ Il repo usa un flusso a **tre livelli**:
   - `feature/viewer` — modulo Viewer
   - `feature/llama-integration` — supporto al modello Llama
   - `feature/world-seeder` — modulo World Seeder
+  - `feature/distiller` — modulo Distiller (Electron + React app)
 
 Entrambi `main` e `devel` sono coperti dallo stesso ruleset (PR obbligatoria, CI verde, no push diretti, no force push).
 

@@ -11,13 +11,27 @@ const LABELS: Record<EntityType, string> = {
   events: 'Eventi'
 }
 
-// Replace all unlinked occurrences of entityName in body (preserves existing [[links]])
-function linkEntityInText(body: string, entityName: string): string {
+// Replace all unlinked occurrences of each matchedName in body with a wiki
+// link to entityName (preserves existing [[links]]). When the matched text
+// differs from entityName (alias case), emit a piped Obsidian link
+// [[entityName|matchedName]] so the display text stays the alias.
+function linkEntityInText(body: string, entityName: string, matchedNames: string[]): string {
   const parts = body.split(/(\[\[[^\]]*\]\])/g)
-  const escaped = entityName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const regex = new RegExp(escaped, 'gi')
   return parts
-    .map((part, i) => (i % 2 === 0 ? part.replace(regex, `[[${entityName}]]`) : part))
+    .map((part, i) => {
+      if (i % 2 === 1) return part // skip existing [[links]]
+      let out = part
+      for (const name of matchedNames) {
+        const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        const regex = new RegExp(escaped, 'gi')
+        const link =
+          name.toLowerCase() === entityName.toLowerCase()
+            ? `[[${entityName}]]`
+            : `[[${entityName}|${name}]]`
+        out = out.replace(regex, link)
+      }
+      return out
+    })
     .join('')
 }
 
@@ -153,7 +167,7 @@ export default function StorageBrowser() {
       let body = selected.body
       for (const match of autoMatches) {
         if (!autoSelected.has(match.entitySlug)) continue
-        body = linkEntityInText(body, match.entityName)
+        body = linkEntityInText(body, match.entityName, match.matchedNames)
       }
       const updated: EntityFile = { ...selected, body }
       await window.chronicler.updateEntity(selectedType, selectedSlug, updated)

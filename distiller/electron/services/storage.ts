@@ -16,6 +16,15 @@ export class StorageService {
     return path.join(this.dirFor(entityType), `${slug}.md`)
   }
 
+  // Write-to-temp + rename: protects against torn writes (crash, power loss,
+  // disk full) — the original file stays intact if the write fails, and the
+  // rename is atomic on NTFS/ext4/APFS. Orphan .tmp files are cleaned at boot.
+  private async atomicWrite(filePath: string, raw: string): Promise<void> {
+    const tmpPath = `${filePath}.tmp`
+    await fs.writeFile(tmpPath, raw, 'utf-8')
+    await fs.rename(tmpPath, filePath)
+  }
+
   // ---------------------------------------------------------------------------
   // Read
   // ---------------------------------------------------------------------------
@@ -94,7 +103,7 @@ export class StorageService {
     const raw = serializeMarkdown(content)
     console.log(`[STORAGE] ${ts()} -> WRITE (create)  ${filePath}`)
     try {
-      await fs.writeFile(filePath, raw, 'utf-8')
+      await this.atomicWrite(filePath, raw)
       console.log(`[STORAGE] ${ts()} OK created  ${filePath}`)
     } catch (err) {
       console.error(`[STORAGE] ${ts()} ERR createEntity failed  ${filePath}`, err)
@@ -110,7 +119,7 @@ export class StorageService {
     const raw = serializeMarkdown(content)
     console.log(`[STORAGE] ${ts()} -> WRITE (update)  ${filePath}`)
     try {
-      await fs.writeFile(filePath, raw, 'utf-8')
+      await this.atomicWrite(filePath, raw)
       console.log(`[STORAGE] ${ts()} OK updated  ${filePath}`)
     } catch (err) {
       console.error(`[STORAGE] ${ts()} ERR updateEntity failed  ${filePath}`, err)

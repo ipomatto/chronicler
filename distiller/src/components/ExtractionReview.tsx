@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { ExtractionResult, ExtractedEntity, EntityType } from '../types/entities'
 import EntityCard from './EntityCard'
+import { useErrors, formatError } from '../contexts/ErrorContext'
 
 interface Props {
   results: ExtractionResult[]
@@ -19,6 +20,7 @@ const LABELS: Record<EntityType, string> = {
 }
 
 export default function ExtractionReview({ results, sessione, onDone }: Props) {
+  const { pushError } = useErrors()
   const [decisions, setDecisions] = useState<DecisionMap>({})
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -55,7 +57,9 @@ export default function ExtractionReview({ results, sessione, onDone }: Props) {
       }
       onDone()
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : String(err))
+      const message = formatError(err)
+      setSaveError(message)
+      pushError('Salvataggio entità approvate fallito', message)
     } finally {
       setSaving(false)
     }

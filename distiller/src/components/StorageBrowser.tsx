@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { EntityType, EntitySummary, EntityFile, UnlinkedMatch } from '../types/entities'
 import EntityEditor from './EntityEditor'
+import { useErrors, formatError } from '../contexts/ErrorContext'
 
 const TABS: EntityType[] = ['characters', 'locations', 'factions', 'events']
 const LABELS: Record<EntityType, string> = {
@@ -10,17 +11,32 @@ const LABELS: Record<EntityType, string> = {
   events: 'Eventi'
 }
 
-// Replace all unlinked occurrences of entityName in body (preserves existing [[links]])
-function linkEntityInText(body: string, entityName: string): string {
+// Replace all unlinked occurrences of each matchedName in body with a wiki
+// link to entityName (preserves existing [[links]]). When the matched text
+// differs from entityName (alias case), emit a piped Obsidian link
+// [[entityName|matchedName]] so the display text stays the alias.
+function linkEntityInText(body: string, entityName: string, matchedNames: string[]): string {
   const parts = body.split(/(\[\[[^\]]*\]\])/g)
-  const escaped = entityName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const regex = new RegExp(escaped, 'gi')
   return parts
-    .map((part, i) => (i % 2 === 0 ? part.replace(regex, `[[${entityName}]]`) : part))
+    .map((part, i) => {
+      if (i % 2 === 1) return part // skip existing [[links]]
+      let out = part
+      for (const name of matchedNames) {
+        const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        const regex = new RegExp(escaped, 'gi')
+        const link =
+          name.toLowerCase() === entityName.toLowerCase()
+            ? `[[${entityName}]]`
+            : `[[${entityName}|${name}]]`
+        out = out.replace(regex, link)
+      }
+      return out
+    })
     .join('')
 }
 
 export default function StorageBrowser() {
+  const { pushError } = useErrors()
   const [tab, setTab] = useState<EntityType>('characters')
   const [entities, setEntities] = useState<EntitySummary[]>([])
   const [selected, setSelected] = useState<EntityFile | null>(null)
@@ -106,12 +122,17 @@ export default function StorageBrowser() {
   async function handleLinkConfirm(candidate: EntitySummary) {
     if (!selected || !selectedSlug || !selectedType || !selectedText) return
     setLinkSaving(true)
-    const newBody = selected.body.replace(selectedText, `[[${candidate.name}]]`)
-    const updated: EntityFile = { ...selected, body: newBody }
-    await window.chronicler.updateEntity(selectedType, selectedSlug, updated)
-    setSelected(updated)
-    clearAllLinkState()
-    setLinkSaving(false)
+    try {
+      const newBody = selected.body.replace(selectedText, `[[${candidate.name}]]`)
+      const updated: EntityFile = { ...selected, body: newBody }
+      await window.chronicler.updateEntity(selectedType, selectedSlug, updated)
+      setSelected(updated)
+      clearAllLinkState()
+    } catch (err) {
+      pushError(`Collegamento di "${selectedText}" fallito`, formatError(err))
+    } finally {
+      setLinkSaving(false)
+    }
   }
 
   // --------------------------------------------------------------------------
@@ -142,16 +163,21 @@ export default function StorageBrowser() {
   async function handleApplyAutoLinks() {
     if (!selected || !selectedSlug || !selectedType || !autoMatches) return
     setAutoSaving(true)
-    let body = selected.body
-    for (const match of autoMatches) {
-      if (!autoSelected.has(match.entitySlug)) continue
-      body = linkEntityInText(body, match.entityName)
+    try {
+      let body = selected.body
+      for (const match of autoMatches) {
+        if (!autoSelected.has(match.entitySlug)) continue
+        body = linkEntityInText(body, match.entityName, match.matchedNames)
+      }
+      const updated: EntityFile = { ...selected, body }
+      await window.chronicler.updateEntity(selectedType, selectedSlug, updated)
+      setSelected(updated)
+      clearAllLinkState()
+    } catch (err) {
+      pushError('Applicazione dei link automatici fallita', formatError(err))
+    } finally {
+      setAutoSaving(false)
     }
-    const updated: EntityFile = { ...selected, body }
-    await window.chronicler.updateEntity(selectedType, selectedSlug, updated)
-    setSelected(updated)
-    clearAllLinkState()
-    setAutoSaving(false)
   }
 
   const displayList = searchResults ?? entities

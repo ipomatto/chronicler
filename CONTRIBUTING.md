@@ -23,6 +23,7 @@ Le issue sono classificate con **label**. Il label `feature/*` determina il bran
 | `feature/viewer` | `feature/viewer` |
 | `feature/llama-integration` | `feature/llama-integration` |
 | `feature/world-seeder` | `feature/world-seeder` |
+| `feature/distiller` | `feature/distiller` |
 | `bug` (senza `feature/*`) | `devel` |
 | Nessun label `feature/*` | `devel` |
 
@@ -92,7 +93,7 @@ Titolo imperativo, conciso, max 72 caratteri. Corpo opzionale per spiegare il *p
 Le label in uso sono volutamente **minime**:
 
 - `bug` — segnalazione di malfunzionamento
-- `feature/viewer` · `feature/llama-integration` · `feature/world-seeder` — classificano l'issue come appartenente a una feature long-lived e definiscono il branch target della PR
+- `feature/viewer` · `feature/llama-integration` · `feature/world-seeder` · `feature/distiller` — classificano l'issue come appartenente a una feature long-lived e definiscono il branch target della PR
 
 Le label di default di GitHub (`duplicate`, `enhancement`, `good first issue`, `help wanted`, `invalid`, `question`, `wontfix`, `documentation`) **non sono in uso**.
 

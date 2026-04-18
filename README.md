@@ -63,3 +63,18 @@ LLM settings and app configuration live in `config/` as JSON files. Extraction p
 ## Documentation
 
 See [SPEC.md](./SPEC.md) for the full project specification.
+
+## Contributing
+
+Lavoriamo in [GitHub flow](https://docs.github.com/en/get-started/using-github/github-flow): `main` è sempre deployabile, ogni modifica vive su un branch dedicato e arriva in `main` via Pull Request con CI verde.
+
+Convenzione di naming dei branch (in linea con lo storico):
+
+- `feat/<slug>` — nuove funzionalità
+- `fix/<slug>` — bug fix
+- `docs/<slug>` — modifiche alla documentazione
+- `chore/<slug>` — manutenzione, build, CI
+
+## License
+
+Distribuito sotto [Apache License 2.0](./LICENSE).

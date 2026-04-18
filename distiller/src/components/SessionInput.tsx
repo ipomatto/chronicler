@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { ExtractionResult, FingerprintMatch, IndexStats, LLMConfig, Provider } from '../types/entities'
 import { useExtraction } from '../hooks/useExtraction'
+import { useErrors, formatError } from '../contexts/ErrorContext'
 
 interface Props {
   onComplete: (results: ExtractionResult[], provider: Provider, model: string, sessione: string) => void
@@ -9,6 +10,7 @@ interface Props {
 type IndexStatus = 'checking' | 'rebuilding' | 'ready'
 
 export default function SessionInput({ onComplete }: Props) {
+  const { pushError } = useErrors()
   const [recapText, setRecapText] = useState('')
   const [provider, setProvider] = useState<Provider>('anthropic')
   const [model, setModel] = useState('')
@@ -33,6 +35,8 @@ export default function SessionInput({ onComplete }: Props) {
     window.chronicler.getLLMConfig().then((cfg) => {
       setLlmConfig(cfg)
       setModel(cfg.providers[provider].defaultModel)
+    }).catch((err) => {
+      pushError('Caricamento configurazione LLM fallito', formatError(err))
     })
   }, [])
 
@@ -42,29 +46,42 @@ export default function SessionInput({ onComplete }: Props) {
 
   useEffect(() => {
     void (async () => {
-      const exists = await window.chronicler.indexExists()
-      if (!exists) {
-        setIndexStatus('rebuilding')
-        const stats = await window.chronicler.rebuildIndex()
-        setIndexStats(stats)
-        setIndexRebuilt(true)
-      } else {
-        const stats = await window.chronicler.getEntityCounts()
-        setIndexStats(stats)
-        setIndexRebuilt(false)
+      try {
+        const exists = await window.chronicler.indexExists()
+        if (!exists) {
+          setIndexStatus('rebuilding')
+          const stats = await window.chronicler.rebuildIndex()
+          setIndexStats(stats)
+          setIndexRebuilt(true)
+        } else {
+          const stats = await window.chronicler.getEntityCounts()
+          setIndexStats(stats)
+          setIndexRebuilt(false)
+        }
+      } catch (err) {
+        pushError('Verifica o ricostruzione indice fallita', formatError(err))
+      } finally {
+        // Always unblock the UI even if the index probe failed — the user
+        // can still extract entities; the index is only a convenience.
+        setIndexStatus('ready')
       }
-      setIndexStatus('ready')
     })()
   }, [])
 
   async function handleExtract() {
     if (!recapText.trim()) return
 
-    // Check for duplicate session via SimHash fingerprint
-    const match = await window.chronicler.checkFingerprint(recapText)
-    if (match) {
-      setFingerprintWarning(match)
-      return
+    // Check for duplicate session via SimHash fingerprint.
+    // If the check itself fails, skip it rather than blocking extraction —
+    // duplicate detection is advisory, not a correctness requirement.
+    try {
+      const match = await window.chronicler.checkFingerprint(recapText)
+      if (match) {
+        setFingerprintWarning(match)
+        return
+      }
+    } catch (err) {
+      pushError('Controllo sessioni duplicate fallito', formatError(err))
     }
 
     await runExtraction()
